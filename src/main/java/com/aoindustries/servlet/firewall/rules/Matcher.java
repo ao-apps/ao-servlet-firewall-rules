@@ -32,7 +32,11 @@ import javax.servlet.http.HttpServletRequest;
  *
  * @see  Matchers
  *
+ * TODO: Include pathInfo in servletPath regarding path space lookups?
+ *
  * TODO: matchers should be in own submodule?
+ *
+ * TODO: Is this redundant with https://docs.spring.io/spring-security/site/docs/4.2.5.RELEASE/apidocs/org/springframework/security/web/util/matcher/package-summary.html?
  */
 public interface Matcher {
 
