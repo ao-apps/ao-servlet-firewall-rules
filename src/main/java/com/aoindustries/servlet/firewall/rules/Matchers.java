@@ -43,6 +43,8 @@ import java.util.regex.Pattern;
  * TODO: Is this blowing-up beyond what is needed by thinking too broadly of matchers and actions?
  *
  * TODO: Capture groups for regular expression-based matches, useful somehow in actions or further matchers?
+ *
+ * TODO: Could/should CSRF be built into the firewall? Or is that a separate concept?
  */
 public class Matchers {
 
@@ -152,8 +154,6 @@ public class Matchers {
 	}
 	// </editor-fold>
 
-	// TODO: Filter name and init parameters from ao-servlet-firewall-filter?
-	// TODO: FilterRegistration?
 	// TODO: Registration?
 	// TODO: Servlet/HttpServlet/ServletConfig/ServletRegistration anything useful at filter processing stage?
 
@@ -200,6 +200,9 @@ public class Matchers {
 		// TODO: log as non-terminal action?
 	}
 	// </editor-fold>
+
+	// TODO: Filter name and init parameters from ao-servlet-firewall-filter?
+	// TODO: FilterRegistration?
 
 	// <editor-fold defaultstate="collapsed" desc="ServletRequest">
 	/**
