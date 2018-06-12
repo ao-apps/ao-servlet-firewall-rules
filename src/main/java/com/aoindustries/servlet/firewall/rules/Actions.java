@@ -22,10 +22,14 @@
  */
 package com.aoindustries.servlet.firewall.rules;
 
-import com.aoindustries.net.Path;
-import com.aoindustries.net.pathspace.Prefix;
+import com.aoindustries.servlet.firewall.rules.Rule.Result;
 import java.io.IOException;
+import javax.servlet.FilterChain;
+import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * A set of simple {@link Action} implementations.
@@ -37,21 +41,25 @@ public class Actions {
 	// <editor-fold defaultstate="collapsed" desc="General">
 	/**
 	 * Performs no action.
+	 *
+	 * @return  {@link Result#CONTINUE} always
 	 */
-	public static final Action NOOP = new Action() {
+	public static final Action CONTINUE = new Action() {
 		@Override
-		public boolean perform(javax.servlet.http.HttpServletRequest request, javax.servlet.http.HttpServletResponse response, javax.servlet.FilterChain chain, Prefix prefix, Path prefixPath, Path path) {
-			return false;
+		public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+			return Result.CONTINUE;
 		}
 	};
 
 	/**
 	 * Performs no action and terminates request processing.
+	 *
+	 * @return  {@link Result#TERMINATE} always
 	 */
-	public static final Action EXIT = new Action() {
+	public static final Action TERMINATE = new Action() {
 		@Override
-		public boolean perform(javax.servlet.http.HttpServletRequest request, javax.servlet.http.HttpServletResponse response, javax.servlet.FilterChain chain, Prefix prefix, Path prefixPath, Path path) {
-			return true;
+		public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+			return Result.TERMINATE;
 		}
 	};
 
@@ -61,32 +69,34 @@ public class Actions {
 
 	// <editor-fold defaultstate="collapsed" desc="FilterChain">
 	/**
-	 * @see  javax.servlet.FilterChain
+	 * @see  FilterChain
 	 */
-	public static class FilterChain {
+	public static class Chain {
 
-		private FilterChain() {}
+		private Chain() {}
 
 		/**
 		 * @see  FilterChain#doFilter(javax.servlet.ServletRequest, javax.servlet.ServletResponse)
+		 *
+		 * @return  {@link Result#TERMINATE} always
 		 */
 		public static final Action doFilter = new Action() {
 			@Override
-			public boolean perform(javax.servlet.http.HttpServletRequest request, javax.servlet.http.HttpServletResponse response, javax.servlet.FilterChain chain, Prefix prefix, Path prefixPath, Path path) throws IOException, ServletException {
+			public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
 				chain.doFilter(request, response);
-				return true;
+				return Result.TERMINATE;
 			}
 		};
 	}
 	// </editor-fold>
 
-	// <editor-fold defaultstate="collapsed" desc="ServletContext">
+	// <editor-fold defaultstate="collapsed" desc="Context">
 	/**
-	 * @see  javax.servlet.ServletContext
+	 * @see  ServletContext
 	 */
-	public static class ServletContext {
+	public static class Context {
 
-		private ServletContext() {}
+		private Context() {}
 
 		// TODO: Attributes (allowing to remove/set in non-terminal action?)
 
@@ -95,57 +105,56 @@ public class Actions {
 		// TODO: RequestDispatcher?
 
 		/**
-		 * @see  javax.servlet.ServletContext#log(java.lang.String)
+		 * @see  ServletContext#log(java.lang.String)
+		 *
+		 * @return  {@link Result#CONTINUE} always
 		 */
-		public static final Action LOG = new Action() {
+		public static final Action log = new Action() {
 			@Override
-			public boolean perform(javax.servlet.http.HttpServletRequest request, javax.servlet.http.HttpServletResponse response, javax.servlet.FilterChain chain, Prefix prefix, Path prefixPath, Path path) {
+			public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
 				// TODO: Could log more
-				request.getServletContext().log("prefix = " + prefix + ", prefixPath = " + prefixPath + ", path = " + path);
-				return false;
+				// TODO: PathPrefix, if present.  Or a way for PathPrefix to register loggers on the FirewallContext
+				// TODO: Also TRACE/stack/integration for logger on FirewallContext?
+				request.getServletContext().log("request.servetPath = " + request.getServletPath()); // TODO: more + ", prefix = " + prefix + ", prefixPath = " + prefixPath + ", path = " + path);
+				return Result.CONTINUE;
 			}
 		};
 
 		/**
-		 * @see  javax.servlet.ServletContext#log(java.lang.String)
+		 * @see  ServletContext#log(java.lang.String)
+		 *
+		 * @return  {@link Result#CONTINUE} always
 		 */
 		public static Action log(final String message) {
 			return new Action() {
 				@Override
-				public boolean perform(javax.servlet.http.HttpServletRequest request, javax.servlet.http.HttpServletResponse response, javax.servlet.FilterChain chain, Prefix prefix, Path prefixPath, Path path) {
+				public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
 					// TODO: Could log more or less
-					request.getServletContext().log("prefix = " + prefix + ", prefixPath = " + prefixPath + ", path = " + path + ", message = " + message);
-					return false;
+					request.getServletContext().log(message);
+					return Result.CONTINUE;
 				}
 			};
 		}
 	}
 	// </editor-fold>
 
-	// <editor-fold defaultstate="collapsed" desc="ServletRequest">
+	// <editor-fold defaultstate="collapsed" desc="Request">
 	/**
 	 * @see  javax.servlet.ServletRequest
 	 */
-	public static class ServletRequest {
+	public static class Request {
 
-		private ServletRequest() {}
+		private Request() {}
 
+		// <editor-fold defaultstate="collapsed" desc="ServletRequest">
 		// TODO: Attributes (allowing to remove/set in non-terminal action?)
 
 		// TODO: setCharacterEncoding?
 
 		// TODO: startAsync?
-	}
-	// </editor-fold>
+		// </editor-fold>
 
-	// <editor-fold defaultstate="collapsed" desc="HttpServletRequest">
-	/**
-	 * @see  javax.servlet.http.HttpServletRequest
-	 */
-	public static class HttpServletRequest {
-
-		private HttpServletRequest() {}
-
+		// <editor-fold defaultstate="collapsed" desc="HttpServletRequest">
 		// TODO: Authenticate?
 
 		// TODO: Parts?
@@ -153,25 +162,31 @@ public class Actions {
 		// TODO: login?
 
 		/**
-		 * @see  javax.servlet.http.HttpServletRequest#logout()
+		 * @see  HttpServletRequest#logout()
+		 *
+		 * @return  {@link Result#CONTINUE} always
 		 */
-		public static final Action LOGOUT = new Action() {
+		public static final Action logout = new Action() {
 			@Override
-			public boolean perform(javax.servlet.http.HttpServletRequest request, javax.servlet.http.HttpServletResponse response, javax.servlet.FilterChain chain, Prefix prefix, Path prefixPath, Path path) throws IOException, ServletException {
+			public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException {
 				request.logout();
-				return false;
+				return Result.CONTINUE;
 			}
 		};
+		// </editor-fold>
 	}
 	// </editor-fold>
 
-	// <editor-fold defaultstate="collapsed" desc="ServletResponse">
+	// <editor-fold defaultstate="collapsed" desc="Response">
 	/**
-	 * @see  javax.servlet.ServletResponse
+	 * @see  ServletResponse
+	 * @see  HttpServletResponse
 	 */
-	public static class ServletResponse {
+	public static class Response {
 
-		private ServletResponse() {}
+		private Response() {}
+
+		// <editor-fold defaultstate="collapsed" desc="ServletResponse">
 
 		// TODO: flushBuffer?
 
@@ -188,23 +203,15 @@ public class Actions {
 		// TODO: setContentType?
 
 		// TODO: setLocale?
-	}
-	// </editor-fold>
+		// </editor-fold>
 
-	// <editor-fold defaultstate="collapsed" desc="HttpServletResponse">
-	/**
-	 * @see  HttpServletResponse
-	 */
-	public static class HttpServletResponse {
-
-		private HttpServletResponse() {}
-
+		// <editor-fold defaultstate="collapsed" desc="HttpServletResponse">
 		// TODO: addCookie?
 
 		// TODO: headers
 
 		/**
-		 * @see  javax.servlet.http.HttpServletResponse#sendError(int)
+		 * @see  HttpServletResponse#sendError(int)
 		 */
 		public static class sendError {
 
@@ -213,254 +220,389 @@ public class Actions {
 			/**
 			 * Sends the provided HTTP status code.
 			 *
-			 * @see  javax.servlet.http.HttpServletResponse#sendError(int)
+			 * @see  HttpServletResponse#sendError(int)
+			 *
+			 * @return  {@link Result#TERMINATE} always
 			 */
-			public static final Action sendError(final int sc) {
-				return new Action() {
-					@Override
-					public boolean perform(javax.servlet.http.HttpServletRequest request, javax.servlet.http.HttpServletResponse response, javax.servlet.FilterChain chain, Prefix prefix, Path prefixPath, Path path) throws IOException, ServletException {
-						response.sendError(sc);
-						return true;
-					}
-				};
+			private static class SendError implements Action {
+				private final int sc;
+				private SendError(int sc) {
+					this.sc = sc;
+				}
+				@Override
+				public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException {
+					response.sendError(sc);
+					return Result.TERMINATE;
+				}
+			}
+
+			/**
+			 * Sends the provided HTTP status code.
+			 *
+			 * @see  HttpServletResponse#sendError(int)
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action sendError(int sc) {
+				switch(sc) {
+					case HttpServletResponse.SC_CONTINUE : return CONTINUE;
+					case HttpServletResponse.SC_SWITCHING_PROTOCOLS : return SWITCHING_PROTOCOLS;
+					case HttpServletResponse.SC_OK : return OK;
+					case HttpServletResponse.SC_CREATED : return CREATED;
+					case HttpServletResponse.SC_ACCEPTED : return ACCEPTED;
+					case HttpServletResponse.SC_NON_AUTHORITATIVE_INFORMATION : return NON_AUTHORITATIVE_INFORMATION;
+					case HttpServletResponse.SC_NO_CONTENT : return NO_CONTENT;
+					case HttpServletResponse.SC_RESET_CONTENT : return RESET_CONTENT;
+					case HttpServletResponse.SC_PARTIAL_CONTENT : return PARTIAL_CONTENT;
+					case HttpServletResponse.SC_MULTIPLE_CHOICES : return MULTIPLE_CHOICES;
+					case HttpServletResponse.SC_MOVED_PERMANENTLY : return MOVED_PERMANENTLY;
+					// Duplicate with SC_FOUND: case HttpServletResponse.SC_MOVED_TEMPORARILY : return MOVED_TEMPORARILY;
+					case HttpServletResponse.SC_FOUND : return FOUND;
+					case HttpServletResponse.SC_SEE_OTHER : return SEE_OTHER;
+					case HttpServletResponse.SC_NOT_MODIFIED : return NOT_MODIFIED;
+					case HttpServletResponse.SC_USE_PROXY : return USE_PROXY;
+					case HttpServletResponse.SC_TEMPORARY_REDIRECT : return TEMPORARY_REDIRECT;
+					case HttpServletResponse.SC_BAD_REQUEST : return BAD_REQUEST;
+					case HttpServletResponse.SC_UNAUTHORIZED : return UNAUTHORIZED;
+					case HttpServletResponse.SC_PAYMENT_REQUIRED : return PAYMENT_REQUIRED;
+					case HttpServletResponse.SC_FORBIDDEN : return FORBIDDEN;
+					case HttpServletResponse.SC_NOT_FOUND : return NOT_FOUND;
+					case HttpServletResponse.SC_METHOD_NOT_ALLOWED : return METHOD_NOT_ALLOWED;
+					case HttpServletResponse.SC_NOT_ACCEPTABLE : return NOT_ACCEPTABLE;
+					case HttpServletResponse.SC_PROXY_AUTHENTICATION_REQUIRED : return PROXY_AUTHENTICATION_REQUIRED;
+					case HttpServletResponse.SC_REQUEST_TIMEOUT : return REQUEST_TIMEOUT;
+					case HttpServletResponse.SC_CONFLICT : return CONFLICT;
+					case HttpServletResponse.SC_GONE : return GONE;
+					case HttpServletResponse.SC_LENGTH_REQUIRED : return LENGTH_REQUIRED;
+					case HttpServletResponse.SC_PRECONDITION_FAILED : return PRECONDITION_FAILED;
+					case HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE : return REQUEST_ENTITY_TOO_LARGE;
+					case HttpServletResponse.SC_REQUEST_URI_TOO_LONG : return REQUEST_URI_TOO_LONG;
+					case HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE : return UNSUPPORTED_MEDIA_TYPE;
+					case HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE : return REQUESTED_RANGE_NOT_SATISFIABLE;
+					case HttpServletResponse.SC_EXPECTATION_FAILED : return EXPECTATION_FAILED;
+					case HttpServletResponse.SC_INTERNAL_SERVER_ERROR : return INTERNAL_SERVER_ERROR;
+					case HttpServletResponse.SC_NOT_IMPLEMENTED : return NOT_IMPLEMENTED;
+					case HttpServletResponse.SC_BAD_GATEWAY : return BAD_GATEWAY;
+					case HttpServletResponse.SC_SERVICE_UNAVAILABLE : return SERVICE_UNAVAILABLE;
+					case HttpServletResponse.SC_GATEWAY_TIMEOUT : return GATEWAY_TIMEOUT;
+					case HttpServletResponse.SC_HTTP_VERSION_NOT_SUPPORTED : return HTTP_VERSION_NOT_SUPPORTED;
+					default : return new SendError(sc); // Other or future status codes
+				}
 			}
 
 			/**
 			 * Sends the provided HTTP status code and provided message.
 			 *
-			 * @see  javax.servlet.http.HttpServletResponse#sendError(int, java.lang.String)
+			 * @see  HttpServletResponse#sendError(int, java.lang.String)
+			 *
+			 * @return  {@link Result#TERMINATE} always
 			 */
 			public static final Action sendError(final int sc, final String message) {
 				return new Action() {
 					@Override
-					public boolean perform(javax.servlet.http.HttpServletRequest request, javax.servlet.http.HttpServletResponse response, javax.servlet.FilterChain chain, Prefix prefix, Path prefixPath, Path path) throws IOException, ServletException {
+					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException {
 						response.sendError(sc, message);
-						return true;
+						return Result.TERMINATE;
 					}
 				};
 			}
 
 			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_ACCEPTED
-			 */
-			public static final Action ACCEPTED = sendError(javax.servlet.http.HttpServletResponse.SC_ACCEPTED);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_BAD_GATEWAY
-			 */
-			public static final Action BAD_GATEWAY = sendError(javax.servlet.http.HttpServletResponse.SC_BAD_GATEWAY);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_BAD_REQUEST
-			 */
-			public static final Action BAD_REQUEST = sendError(javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_CONFLICT
-			 */
-			public static final Action CONFLICT = sendError(javax.servlet.http.HttpServletResponse.SC_CONFLICT);
-
-			/**
-			 * TODO: Does this make sense as sendError?
+			 * @see  HttpServletResponse#SC_CONTINUE
 			 *
-			 * @see  javax.servlet.http.HttpServletResponse#SC_CONTINUE
+			 * @return  {@link Result#TERMINATE} always
 			 */
-			public static final Action CONTINUE = sendError(javax.servlet.http.HttpServletResponse.SC_CONTINUE);
+			public static final Action CONTINUE = new SendError(HttpServletResponse.SC_CONTINUE);
 
 			/**
-			 * TODO: Does this make sense as sendError?
+			 * @see  HttpServletResponse#SC_SWITCHING_PROTOCOLS
 			 *
-			 * @see  javax.servlet.http.HttpServletResponse#SC_CREATED
+			 * @return  {@link Result#TERMINATE} always
 			 */
-			public static final Action CREATED = sendError(javax.servlet.http.HttpServletResponse.SC_CREATED);
+			public static final Action SWITCHING_PROTOCOLS = new SendError(HttpServletResponse.SC_SWITCHING_PROTOCOLS);
 
 			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_EXPECTATION_FAILED
-			 */
-			public static final Action EXPECTATION_FAILED = sendError(javax.servlet.http.HttpServletResponse.SC_EXPECTATION_FAILED);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_FORBIDDEN
-			 */
-			public static final Action FORBIDDEN = sendError(javax.servlet.http.HttpServletResponse.SC_FORBIDDEN);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_FOUND
-			 */
-			public static final Action FOUND = sendError(javax.servlet.http.HttpServletResponse.SC_FOUND);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_GATEWAY_TIMEOUT
-			 */
-			public static final Action GATEWAY_TIMEOUT = sendError(javax.servlet.http.HttpServletResponse.SC_GATEWAY_TIMEOUT);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_GONE
-			 */
-			public static final Action GONE = sendError(javax.servlet.http.HttpServletResponse.SC_GONE);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_HTTP_VERSION_NOT_SUPPORTED
-			 */
-			public static final Action HTTP_VERSION_NOT_SUPPORTED = sendError(javax.servlet.http.HttpServletResponse.SC_HTTP_VERSION_NOT_SUPPORTED);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_INTERNAL_SERVER_ERROR
-			 */
-			public static final Action INTERNAL_SERVER_ERROR = sendError(javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_LENGTH_REQUIRED
-			 */
-			public static final Action LENGTH_REQUIRED = sendError(javax.servlet.http.HttpServletResponse.SC_LENGTH_REQUIRED);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_METHOD_NOT_ALLOWED
-			 */
-			public static final Action METHOD_NOT_ALLOWED = sendError(javax.servlet.http.HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_MOVED_PERMANENTLY
-			 */
-			public static final Action MOVED_PERMANENTLY = sendError(javax.servlet.http.HttpServletResponse.SC_MOVED_PERMANENTLY);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_MOVED_TEMPORARILY
-			 */
-			public static final Action MOVED_TEMPORARILY = sendError(javax.servlet.http.HttpServletResponse.SC_MOVED_TEMPORARILY);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_MULTIPLE_CHOICES
-			 */
-			public static final Action MULTIPLE_CHOICES = sendError(javax.servlet.http.HttpServletResponse.SC_MULTIPLE_CHOICES);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_NO_CONTENT
-			 */
-			public static final Action NO_CONTENT = sendError(javax.servlet.http.HttpServletResponse.SC_NO_CONTENT);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_NON_AUTHORITATIVE_INFORMATION
-			 */
-			public static final Action NON_AUTHORITATIVE_INFORMATION = sendError(javax.servlet.http.HttpServletResponse.SC_NON_AUTHORITATIVE_INFORMATION);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_NOT_ACCEPTABLE
-			 */
-			public static final Action NOT_ACCEPTABLE = sendError(javax.servlet.http.HttpServletResponse.SC_NOT_ACCEPTABLE);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_NOT_FOUND
-			 */
-			public static final Action NOT_FOUND = sendError(javax.servlet.http.HttpServletResponse.SC_NOT_FOUND);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_NOT_IMPLEMENTED
-			 */
-			public static final Action NOT_IMPLEMENTED = sendError(javax.servlet.http.HttpServletResponse.SC_NOT_IMPLEMENTED);
-
-			/**
-			 * TODO: Does this make sense as sendError?
+			 * @see  HttpServletResponse#SC_OK
 			 *
-			 * @see  javax.servlet.http.HttpServletResponse#SC_NOT_MODIFIED
+			 * @return  {@link Result#TERMINATE} always
 			 */
-			public static final Action NOT_MODIFIED = sendError(javax.servlet.http.HttpServletResponse.SC_NOT_MODIFIED);
+			public static final Action OK = new SendError(HttpServletResponse.SC_OK);
 
 			/**
-			 * TODO: Does this make sense as sendError?
+			 * @see  HttpServletResponse#SC_CREATED
 			 *
-			 * @see  javax.servlet.http.HttpServletResponse#SC_OK
+			 * @return  {@link Result#TERMINATE} always
 			 */
-			public static final Action OK = sendError(javax.servlet.http.HttpServletResponse.SC_OK);
+			public static final Action CREATED = new SendError(HttpServletResponse.SC_CREATED);
 
 			/**
-			 * TODO: Does this make sense as sendError?
+			 * @see  HttpServletResponse#SC_ACCEPTED
 			 *
-			 * @see  javax.servlet.http.HttpServletResponse#SC_PARTIAL_CONTENT
+			 * @return  {@link Result#TERMINATE} always
 			 */
-			public static final Action PARTIAL_CONTENT = sendError(javax.servlet.http.HttpServletResponse.SC_PARTIAL_CONTENT);
+			public static final Action ACCEPTED = new SendError(HttpServletResponse.SC_ACCEPTED);
 
 			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_PAYMENT_REQUIRED
-			 */
-			public static final Action PAYMENT_REQUIRED = sendError(javax.servlet.http.HttpServletResponse.SC_PAYMENT_REQUIRED);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_PRECONDITION_FAILED
-			 */
-			public static final Action PRECONDITION_FAILED = sendError(javax.servlet.http.HttpServletResponse.SC_PRECONDITION_FAILED);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_PROXY_AUTHENTICATION_REQUIRED
-			 */
-			public static final Action PROXY_AUTHENTICATION_REQUIRED = sendError(javax.servlet.http.HttpServletResponse.SC_PROXY_AUTHENTICATION_REQUIRED);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_REQUEST_ENTITY_TOO_LARGE
-			 */
-			public static final Action REQUEST_ENTITY_TOO_LARGE = sendError(javax.servlet.http.HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_REQUEST_TIMEOUT
-			 */
-			public static final Action REQUEST_TIMEOUT = sendError(javax.servlet.http.HttpServletResponse.SC_REQUEST_TIMEOUT);
-
-			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_REQUEST_URI_TOO_LONG
-			 */
-			public static final Action REQUEST_URI_TOO_LONG = sendError(javax.servlet.http.HttpServletResponse.SC_REQUEST_URI_TOO_LONG);
-
-			/**
-			 * TODO: Does this make sense as sendError?
+			 * @see  HttpServletResponse#SC_NON_AUTHORITATIVE_INFORMATION
 			 *
-			 * @see  javax.servlet.http.HttpServletResponse#SC_REQUESTED_RANGE_NOT_SATISFIABLE
+			 * @return  {@link Result#TERMINATE} always
 			 */
-			public static final Action REQUESTED_RANGE_NOT_SATISFIABLE = sendError(javax.servlet.http.HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
+			public static final Action NON_AUTHORITATIVE_INFORMATION = new SendError(HttpServletResponse.SC_NON_AUTHORITATIVE_INFORMATION);
 
 			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_RESET_CONTENT
+			 * @see  HttpServletResponse#SC_NO_CONTENT
+			 *
+			 * @return  {@link Result#TERMINATE} always
 			 */
-			public static final Action RESET_CONTENT = sendError(javax.servlet.http.HttpServletResponse.SC_RESET_CONTENT);
+			public static final Action NO_CONTENT = new SendError(HttpServletResponse.SC_NO_CONTENT);
 
 			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_SEE_OTHER
+			 * @see  HttpServletResponse#SC_RESET_CONTENT
+			 *
+			 * @return  {@link Result#TERMINATE} always
 			 */
-			public static final Action SEE_OTHER = sendError(javax.servlet.http.HttpServletResponse.SC_SEE_OTHER);
+			public static final Action RESET_CONTENT = new SendError(HttpServletResponse.SC_RESET_CONTENT);
 
 			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_SERVICE_UNAVAILABLE
+			 * @see  HttpServletResponse#SC_PARTIAL_CONTENT
+			 *
+			 * @return  {@link Result#TERMINATE} always
 			 */
-			public static final Action SERVICE_UNAVAILABLE = sendError(javax.servlet.http.HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+			public static final Action PARTIAL_CONTENT = new SendError(HttpServletResponse.SC_PARTIAL_CONTENT);
 
 			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_SWITCHING_PROTOCOLS
+			 * @see  HttpServletResponse#SC_MULTIPLE_CHOICES
+			 *
+			 * @return  {@link Result#TERMINATE} always
 			 */
-			public static final Action SWITCHING_PROTOCOLS = sendError(javax.servlet.http.HttpServletResponse.SC_SWITCHING_PROTOCOLS);
+			public static final Action MULTIPLE_CHOICES = new SendError(HttpServletResponse.SC_MULTIPLE_CHOICES);
 
 			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_TEMPORARY_REDIRECT
+			 * @see  HttpServletResponse#SC_MOVED_PERMANENTLY
+			 *
+			 * @return  {@link Result#TERMINATE} always
 			 */
-			public static final Action TEMPORARY_REDIRECT = sendError(javax.servlet.http.HttpServletResponse.SC_TEMPORARY_REDIRECT);
+			public static final Action MOVED_PERMANENTLY = new SendError(HttpServletResponse.SC_MOVED_PERMANENTLY);
 
 			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_UNAUTHORIZED
+			 * @see  HttpServletResponse#SC_FOUND
+			 *
+			 * @return  {@link Result#TERMINATE} always
 			 */
-			public static final Action UNAUTHORIZED = sendError(javax.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+			public static final Action FOUND = new SendError(HttpServletResponse.SC_FOUND);
 
 			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_UNSUPPORTED_MEDIA_TYPE
+			 * @see  HttpServletResponse#SC_MOVED_TEMPORARILY
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 *
+			 * @deprecated  Please use {@link #FOUND}
 			 */
-			public static final Action UNSUPPORTED_MEDIA_TYPE = sendError(javax.servlet.http.HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE);
+			@Deprecated
+			public static final Action MOVED_TEMPORARILY = FOUND;
 
 			/**
-			 * @see  javax.servlet.http.HttpServletResponse#SC_USE_PROXY
+			 * @see  HttpServletResponse#SC_SEE_OTHER
+			 *
+			 * @return  {@link Result#TERMINATE} always
 			 */
-			public static final Action USE_PROXY = sendError(javax.servlet.http.HttpServletResponse.SC_USE_PROXY);
+			public static final Action SEE_OTHER = new SendError(HttpServletResponse.SC_SEE_OTHER);
+
+			/**
+			 * @see  HttpServletResponse#SC_NOT_MODIFIED
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action NOT_MODIFIED = new SendError(HttpServletResponse.SC_NOT_MODIFIED);
+
+			/**
+			 * @see  HttpServletResponse#SC_USE_PROXY
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action USE_PROXY = new SendError(HttpServletResponse.SC_USE_PROXY);
+
+			/**
+			 * @see  HttpServletResponse#SC_TEMPORARY_REDIRECT
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action TEMPORARY_REDIRECT = new SendError(HttpServletResponse.SC_TEMPORARY_REDIRECT);
+
+			/**
+			 * @see  HttpServletResponse#SC_BAD_REQUEST
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action BAD_REQUEST = new SendError(HttpServletResponse.SC_BAD_REQUEST);
+
+			/**
+			 * @see  HttpServletResponse#SC_UNAUTHORIZED
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action UNAUTHORIZED = new SendError(HttpServletResponse.SC_UNAUTHORIZED);
+
+			/**
+			 * @see  HttpServletResponse#SC_PAYMENT_REQUIRED
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action PAYMENT_REQUIRED = new SendError(HttpServletResponse.SC_PAYMENT_REQUIRED);
+
+			/**
+			 * @see  HttpServletResponse#SC_FORBIDDEN
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action FORBIDDEN = new SendError(HttpServletResponse.SC_FORBIDDEN);
+
+			/**
+			 * @see  HttpServletResponse#SC_NOT_FOUND
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action NOT_FOUND = new SendError(HttpServletResponse.SC_NOT_FOUND);
+
+			/**
+			 * @see  HttpServletResponse#SC_METHOD_NOT_ALLOWED
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action METHOD_NOT_ALLOWED = new SendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+
+			/**
+			 * @see  HttpServletResponse#SC_NOT_ACCEPTABLE
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action NOT_ACCEPTABLE = new SendError(HttpServletResponse.SC_NOT_ACCEPTABLE);
+
+			/**
+			 * @see  HttpServletResponse#SC_PROXY_AUTHENTICATION_REQUIRED
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action PROXY_AUTHENTICATION_REQUIRED = new SendError(HttpServletResponse.SC_PROXY_AUTHENTICATION_REQUIRED);
+
+			/**
+			 * @see  HttpServletResponse#SC_REQUEST_TIMEOUT
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action REQUEST_TIMEOUT = new SendError(HttpServletResponse.SC_REQUEST_TIMEOUT);
+
+			/**
+			 * @see  HttpServletResponse#SC_CONFLICT
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action CONFLICT = new SendError(HttpServletResponse.SC_CONFLICT);
+
+			/**
+			 * @see  HttpServletResponse#SC_GONE
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action GONE = new SendError(HttpServletResponse.SC_GONE);
+
+			/**
+			 * @see  HttpServletResponse#SC_LENGTH_REQUIRED
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action LENGTH_REQUIRED = new SendError(HttpServletResponse.SC_LENGTH_REQUIRED);
+
+			/**
+			 * @see  HttpServletResponse#SC_PRECONDITION_FAILED
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action PRECONDITION_FAILED = new SendError(HttpServletResponse.SC_PRECONDITION_FAILED);
+
+			/**
+			 * @see  HttpServletResponse#SC_REQUEST_ENTITY_TOO_LARGE
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action REQUEST_ENTITY_TOO_LARGE = new SendError(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
+
+			/**
+			 * @see  HttpServletResponse#SC_REQUEST_URI_TOO_LONG
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action REQUEST_URI_TOO_LONG = new SendError(HttpServletResponse.SC_REQUEST_URI_TOO_LONG);
+
+			/**
+			 * @see  HttpServletResponse#SC_UNSUPPORTED_MEDIA_TYPE
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action UNSUPPORTED_MEDIA_TYPE = new SendError(HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE);
+
+			/**
+			 * @see  HttpServletResponse#SC_REQUESTED_RANGE_NOT_SATISFIABLE
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action REQUESTED_RANGE_NOT_SATISFIABLE = new SendError(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
+
+			/**
+			 * @see  HttpServletResponse#SC_EXPECTATION_FAILED
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action EXPECTATION_FAILED = new SendError(HttpServletResponse.SC_EXPECTATION_FAILED);
+
+			/**
+			 * @see  HttpServletResponse#SC_INTERNAL_SERVER_ERROR
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action INTERNAL_SERVER_ERROR = new SendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+
+			/**
+			 * @see  HttpServletResponse#SC_NOT_IMPLEMENTED
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action NOT_IMPLEMENTED = new SendError(HttpServletResponse.SC_NOT_IMPLEMENTED);
+
+			/**
+			 * @see  HttpServletResponse#SC_BAD_GATEWAY
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action BAD_GATEWAY = new SendError(HttpServletResponse.SC_BAD_GATEWAY);
+
+			/**
+			 * @see  HttpServletResponse#SC_SERVICE_UNAVAILABLE
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action SERVICE_UNAVAILABLE = new SendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+
+			/**
+			 * @see  HttpServletResponse#SC_GATEWAY_TIMEOUT
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action GATEWAY_TIMEOUT = new SendError(HttpServletResponse.SC_GATEWAY_TIMEOUT);
+
+			/**
+			 * @see  HttpServletResponse#SC_HTTP_VERSION_NOT_SUPPORTED
+			 *
+			 * @return  {@link Result#TERMINATE} always
+			 */
+			public static final Action HTTP_VERSION_NOT_SUPPORTED = new SendError(HttpServletResponse.SC_HTTP_VERSION_NOT_SUPPORTED);
 		}
 
 		// TODO: sendRedirect
 
 		// TODO: setStatus
+
+		// </editor-fold>
 	}
 	// </editor-fold>
 

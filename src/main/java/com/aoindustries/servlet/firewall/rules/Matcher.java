@@ -22,13 +22,22 @@
  */
 package com.aoindustries.servlet.firewall.rules;
 
-import com.aoindustries.net.Path;
-import com.aoindustries.net.pathspace.PathSpace;
-import com.aoindustries.net.pathspace.Prefix;
+import java.io.IOException;
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * Matches {@link HttpServletRequest servlet requests}.
+ * <p>
+ * A matcher must not have any side-effects on the context, request, or response.
+ * It may only have side-effects outside of the request processing, such as internal statistics on its own use.
+ * Statistics providing rules, however, should be implemented as {@link Result#CONTINUE non-terminating} {@link Action actions}.
+ * </p>
+ * <p>
+ * It is possible for matchers to have nested rules (including both matchers and/or actions).
+ * </p>
  *
  * @see  Matchers
  *
@@ -38,20 +47,18 @@ import javax.servlet.http.HttpServletRequest;
  *
  * TODO: Is this redundant with https://docs.spring.io/spring-security/site/docs/4.2.5.RELEASE/apidocs/org/springframework/security/web/util/matcher/package-summary.html?
  */
-public interface Matcher {
+// TODO: Java 1.8: @Functional
+public interface Matcher extends Rule {
 
 	/**
 	 * Checks if the given request is matched.
+	 * This must not have any side-effects on the context, request, or response.
 	 *
-	 * @param request  The request being matched
-	 *
-	 * @param prefix  See {@link PathSpace.PathMatch#getPrefix()}
-	 *
-	 * @param prefixPath  See {@link PathSpace.PathMatch#getPrefixPath()}
-	 *
-	 * @param path  See {@link PathSpace.PathMatch#getPath()}
-	 *
-	 * @return {@code true} when the request matches, {@code false} otherwise
+	 * @return  Returns {@link Result#TERMINATE} propagated from when a nested terminal action is performed,
+	 *          {@link Result#MATCH} when the rule matches but no nested terminal action is performed (non-terminal might have been performed),
+	 *          or {@link Result#NO_MATCH} when the rule is not matched (nested non-terminal actions might still have been performed, depending on matcher implementation).
+	 *          {@link Result#CONTINUE} is not a valid return from a matcher.
 	 */
-	boolean matches(HttpServletRequest request, Prefix prefix, Path prefixPath, Path path);
+	@Override
+	Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException;
 }

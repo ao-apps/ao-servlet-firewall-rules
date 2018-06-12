@@ -22,24 +22,66 @@
  */
 package com.aoindustries.servlet.firewall.rules;
 
+import java.io.IOException;
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
 /**
- * A rule is zero or more {@link Matcher matchers},
- * for which zero or more {@link Action actions} will be taken, until the first terminating action that returns
- * {@code true} from {@link Action#perform(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, javax.servlet.FilterChain, com.aoindustries.net.pathspace.Prefix, com.aoindustries.net.Path, com.aoindustries.net.Path)}.
+ * The parent interface of either {@link Matcher} or {@link Action}.  No other
+ * sub-interfaces are expected, and no direct implementations of this interface
+ * are expected.
+ * <p>
+ * This is to simplify the implementation of the nesting of matchers and actions.
+ * </p>
  */
+// TODO: Java 1.8: @Functional
 public interface Rule {
 
-	/**
-	 * Gets that matchers for this rule.
-	 * All must {@link Matcher#matches(javax.servlet.http.HttpServletRequest, com.aoindustries.net.pathspace.Prefix, com.aoindustries.net.Path, com.aoindustries.net.Path) match}
-	 * for this rule to be used.
-	 * If empty, is considered a match.
-	 */
-	Iterable<? extends Matcher> getMatchers();
+	// There is currently no common method between matcher and action, since the
+	// rule engine uses its own stacks to dispatch between rules, instead of
+	// the Java runtime directly? TODO: This actually how we did it?
+
+	enum Result {
+		/**
+		 * Indicates no match.
+		 * Valid from {@link Matcher} only.
+		 */
+		NO_MATCH,
+
+		/**
+		 * Indicates matched.
+		 * Valid from {@link Matcher} only.
+		 */
+		MATCH,
+
+		/**
+		 * Indicates an action has been performed, but it is non-terminal and rule processing must continue.
+		 * Valid from {@link Action} only.
+		 */
+		CONTINUE,
+
+		/**
+		 * Indicates that a terminal action has been performed.  Rule processing must stop.
+		 * Valid from either {@link Matcher} or {@link Action}, however it must originate only from
+		 * an {@link Action} and may be propagated up the stack through {@link Matcher}.
+		 * We are favoring this propagation of return over exceptions.
+		 */
+		TERMINATE
+	}
 
 	/**
-	 * Gets the actions for this rule.  If empty, no action is {@link Action#perform(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, javax.servlet.FilterChain, com.aoindustries.net.pathspace.Prefix, com.aoindustries.net.Path, com.aoindustries.net.Path) performed}.
-	 * Actions after the first terminating action are not performed.
+	 * Called for the rule to be performed.
+	 *
+	 * @param request  The request being matched
+	 *
+	 * @param response  The current response
+	 *
+	 * @param chain  The current filter chain
+	 *
+	 * @return  The {@link Result result} of the rule, see {@link Result}.
 	 */
-	Iterable<? extends Action> getActions();
+	// TODO: SkipPageException correct here?
+	Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException;
 }

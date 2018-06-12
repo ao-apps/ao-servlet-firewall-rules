@@ -22,9 +22,6 @@
  */
 package com.aoindustries.servlet.firewall.rules;
 
-import com.aoindustries.net.Path;
-import com.aoindustries.net.pathspace.PathSpace;
-import com.aoindustries.net.pathspace.Prefix;
 import java.io.IOException;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -32,28 +29,29 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /**
- * An action taken for {@link HttpServletRequest servlet requests}
- * that {@link Matcher#matches(javax.servlet.http.HttpServletRequest, com.aoindustries.net.pathspace.Prefix, com.aoindustries.net.Path, com.aoindustries.net.Path) match}.
+ * An action is a rule that has side-effects.  It has access to the
+ * {@link HttpServletResponse} and {@link FilterChain} of the request.
+ * <p>
+ * It is possible for actions to have nested rules (including both matchers and/or actions).
+ * This might be most appropriate when an action wraps the request or response objects before
+ * performing additional rules, such as a "noSession" implementation might do.
+ * </p>
  *
  * @see  Actions
  *
  * TODO: actions should be in own submodule?
  */
-public interface Action {
+// TODO: Java 1.8: @Functional
+public interface Action extends Rule {
 
 	/**
-	 * The action to perform.
+	 * Performs the desired action.
+	 * This may have side-effects on the context, request, or response.
 	 *
-	 * @param request  The request being matched
-	 *
-	 * @param prefix  See {@link PathSpace.PathMatch#getPrefix()}
-	 *
-	 * @param prefixPath  See {@link PathSpace.PathMatch#getPrefixPath()}
-	 *
-	 * @param path  See {@link PathSpace.PathMatch#getPath()}
-	 *
-	 * @return {@code true} when the request is consumed (a terminal action),
-	 *         or {@code false} when additional matching and/or actions may be performed.
+	 * @return  Returns {@link Result#TERMINATE} for a terminating action that has handled the request/response
+	 *          or {@link Result#CONTINUE} for a non-terminating action.
+	 *          {@link Result#MATCH} and {@link Result#NO_MATCH} are not valid returns from an action.
 	 */
-	boolean perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, Prefix prefix, Path prefixPath, Path path) throws IOException, ServletException;
+	@Override
+	Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException;
 }
