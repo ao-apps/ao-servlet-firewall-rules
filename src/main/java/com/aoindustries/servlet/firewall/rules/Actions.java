@@ -69,13 +69,13 @@ public class Actions {
 
 	// </editor-fold>
 
-	// <editor-fold defaultstate="collapsed" desc="FilterChain">
+	// <editor-fold defaultstate="collapsed" desc="chain">
 	/**
 	 * @see  FilterChain
 	 */
-	public static class Chain {
+	public static class chain {
 
-		private Chain() {}
+		private chain() {}
 
 		/**
 		 * @see  FilterChain#doFilter(javax.servlet.ServletRequest, javax.servlet.ServletResponse)
@@ -92,13 +92,13 @@ public class Actions {
 	}
 	// </editor-fold>
 
-	// <editor-fold defaultstate="collapsed" desc="Context">
+	// <editor-fold defaultstate="collapsed" desc="servletContext">
 	/**
 	 * @see  ServletContext
 	 */
-	public static class Context {
+	public static class servletContext {
 
-		private Context() {}
+		private servletContext() {}
 
 		// TODO: Attributes (allowing to remove/set in non-terminal action?)
 
@@ -140,13 +140,13 @@ public class Actions {
 	}
 	// </editor-fold>
 
-	// <editor-fold defaultstate="collapsed" desc="Request">
+	// <editor-fold defaultstate="collapsed" desc="request">
 	/**
 	 * @see  javax.servlet.ServletRequest
 	 */
-	public static class Request {
+	public static class request {
 
-		private Request() {}
+		private request() {}
 
 		// <editor-fold defaultstate="collapsed" desc="ServletRequest">
 		// TODO: Attributes (allowing to remove/set in non-terminal action?)
@@ -179,14 +179,14 @@ public class Actions {
 	}
 	// </editor-fold>
 
-	// <editor-fold defaultstate="collapsed" desc="Response">
+	// <editor-fold defaultstate="collapsed" desc="response">
 	/**
 	 * @see  ServletResponse
 	 * @see  HttpServletResponse
 	 */
-	public static class Response {
+	public static class response {
 
-		private Response() {}
+		private response() {}
 
 		// <editor-fold defaultstate="collapsed" desc="ServletResponse">
 
