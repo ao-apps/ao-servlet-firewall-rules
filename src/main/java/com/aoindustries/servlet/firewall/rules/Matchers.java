@@ -57,8 +57,6 @@ import javax.servlet.http.HttpServletRequest;
  *
  * TODO: Could/should CSRF be built into the firewall? Or is that a separate concept?
  *
- * TODO: FirewallContext that should be used to invoke all matchers and rules.  This would provide the hooks for tools like "TRACE" useful in debugging/development.
- *
  * @implNote  Defensive copying of collections is not performed, intentionally allowing callers to provided mutable collections.
  *            Although this should be used sparingly, it may be appropriate for rules that call-out to other APIs,
  *            such as ACLs inside of a database.
@@ -100,10 +98,10 @@ public class Matchers {
 
 	/**
 	 * Matches when all matchers match.
-	 * Stops processing rules (both matchers and actions) when the first matcher does not match.
+	 * Stops processing {@code rules} (both matchers and actions) when the first matcher does not match.
 	 * Performs any actions while processing rules, up to the point stopped on first non-matching matcher.
 	 *
-	 * @return  {@link Result#MATCH} when matchers is empty
+	 * @return  {@link Result#MATCH} when rules is empty
 	 */
 	public static Matcher all(final Iterable<? extends Rule> rules) {
 		return new Matcher() {
@@ -124,8 +122,6 @@ public class Matchers {
 						}
 					}
 					if(rule instanceof Action) {
-						// TODO: Should we allow a rule to be both a matcher and an action?
-						//       This could be useful for implementing routes, but that is beyond the scope of "firewall".
 						Action.Result result = context.call((Action)rule);
 						switch(result) {
 							case TERMINATE :
@@ -142,9 +138,68 @@ public class Matchers {
 		};
 	}
 
+	/**
+	 * Matches when all matchers match.
+	 * Stops processing {@code rules} (both matchers and actions) when the first matcher does not match.
+	 * Performs any actions while processing rules, up to the point stopped on first non-matching matcher.
+	 *
+	 * @param  otherwise  Performs all {@code otherwise} rules only when a matcher in {@code matches} does not match.
+	 *
+	 * @return  {@link Result#MATCH} when rules is empty
+	 */
+	public static Matcher all(final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+		return new Matcher() {
+			@Override
+			public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+				boolean matched = true;
+				RULES :
+				for(Rule rule : rules) {
+					if(rule instanceof Matcher) {
+						Result result = context.call((Matcher)rule);
+						switch(result) {
+							case TERMINATE :
+								return Result.TERMINATE;
+							case NO_MATCH :
+								matched = false;
+								// Move on to otherwise
+								break RULES;
+							case MATCH :
+								// Continue to action
+								break;
+							default :
+								throw new AssertionError();
+						}
+					}
+					if(rule instanceof Action) {
+						Action.Result result = context.call((Action)rule);
+						switch(result) {
+							case TERMINATE :
+								return Result.TERMINATE;
+							case CONTINUE :
+								// Continue to next rule
+								break;
+							default :
+								throw new AssertionError();
+						}
+					}
+				}
+				if(matched) {
+					return Result.MATCH;
+				} else {
+					return callRules(context, otherwise, Result.NO_MATCH);
+				}
+			}
+		};
+	}
+
 	public static Matcher all(Rule ... rules) {
 		if(rules.length == 0) return all;
 		return all(Arrays.asList(rules));
+	}
+
+	public static Matcher all(Rule[] rules, Rule ... otherwise) {
+		if(otherwise.length == 0) return all(rules);
+		return all(Arrays.asList(rules), Arrays.asList(otherwise));
 	}
 
 	/**
@@ -152,7 +207,7 @@ public class Matchers {
 	 * Stops processing matchers once the first match is found.
 	 * Begins processing actions once the first match is found.
 	 *
-	 * @return  {@link Result#NO_MATCH} when matchers is empty
+	 * @return  {@link Result#NO_MATCH} when rules is empty
 	 *
 	 * @see  #none
 	 */
@@ -200,6 +255,64 @@ public class Matchers {
 	}
 
 	/**
+	 * Matches when any matchers match.
+	 * Stops processing matchers once the first match is found.
+	 * Begins processing actions once the first match is found.
+	 *
+	 * @param  otherwise  Performs all {@code otherwise} rules only when no matcher in {@code matches} matches.
+	 *
+	 * @return  {@link Result#NO_MATCH} when rules is empty
+	 *
+	 * @see  #none
+	 */
+	public static Matcher any(final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+		return new Matcher() {
+			@Override
+			public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+				boolean matched = false;
+				for(Rule rule : rules) {
+					if(rule instanceof Matcher) {
+						if(!matched) {
+							Result result = context.call((Matcher)rule);
+							switch(result) {
+								case TERMINATE :
+									return Result.TERMINATE;
+								case MATCH :
+									matched = true;
+									break;
+								case NO_MATCH :
+									// Continue lookning for first match
+									break;
+								default :
+									throw new AssertionError();
+							}
+						}
+					}
+					if(rule instanceof Action) {
+						if(matched) {
+							Action.Result result = context.call((Action)rule);
+							switch(result) {
+								case TERMINATE :
+									return Result.TERMINATE;
+								case CONTINUE :
+									// Continue with any additional actions
+									break;
+								default :
+									throw new AssertionError();
+							}
+						}
+					}
+				}
+				if(matched) {
+					return Result.MATCH;
+				} else {
+					return callRules(context, otherwise, Result.NO_MATCH);
+				}
+			}
+		};
+	}
+
+	/**
 	 * @see  #none
 	 */
 	public static Matcher any(Rule ... rules) {
@@ -207,11 +320,17 @@ public class Matchers {
 		return any(Arrays.asList(rules));
 	}
 
+	public static Matcher any(Rule[] rules, Rule ... otherwise) {
+		if(otherwise.length == 0) return any(rules);
+		return any(Arrays.asList(rules), Arrays.asList(otherwise));
+	}
+
 	/**
 	 * Negates a match.
 	 *
 	 * TODO: What would it mean to handle multiple rules?  Or best used with "not/any" "not/all"?
 	 * TODO: Should the negation be passed on to them regarding their invocation of any nested actions?
+	 * TODO: What would "otherwise" be?
 	 */
 	public static Matcher not(final Matcher matcher) {
 		return new Matcher() {
@@ -230,19 +349,20 @@ public class Matchers {
 
 	/**
 	 * Shared implementation for when matchers match the request and are dispatching to all their nested rules.
+	 * This is also used for "otherwise" when the matcher does not match.
 	 */
-	private static Result callRules(FirewallContext context, Iterable<? extends Rule> rules) throws IOException, ServletException {
+	private static Result callRules(FirewallContext context, Iterable<? extends Rule> rules, Result result) throws IOException, ServletException {
 		for(Rule rule : rules) {
 			if(rule instanceof Matcher) {
-				Result result = context.call((Matcher)rule);
-				if(result == Result.TERMINATE) return Result.TERMINATE;
+				Result matcherResult = context.call((Matcher)rule);
+				if(matcherResult == Result.TERMINATE) return Result.TERMINATE;
 			}
 			if(rule instanceof Action) {
-				Action.Result result = context.call((Action)rule);
-				if(result == Action.Result.TERMINATE) return Result.TERMINATE;
+				Action.Result actionResult = context.call((Action)rule);
+				if(actionResult == Action.Result.TERMINATE) return Result.TERMINATE;
 			}
 		}
-		return Result.MATCH;
+		return result;
 	}
 
 	/**
@@ -250,9 +370,20 @@ public class Matchers {
 	 */
 	private static Result doMatches(boolean matches, FirewallContext context, Iterable<? extends Rule> rules) throws IOException, ServletException {
 		if(matches) {
-			return callRules(context, rules);
+			return callRules(context, rules, Result.MATCH);
 		} else {
 			return Result.NO_MATCH;
+		}
+	}
+
+	/**
+	 * Shared implementation for when matchers match the request and are dispatching to all their nested rules.
+	 */
+	private static Result doMatches(boolean matches, FirewallContext context, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) throws IOException, ServletException {
+		if(matches) {
+			return callRules(context, rules, Result.MATCH);
+		} else {
+			return callRules(context, otherwise, Result.NO_MATCH);
 		}
 	}
 	// </editor-fold>
@@ -367,7 +498,8 @@ public class Matchers {
 
 			/**
 			 * Matches one given {@link DispatcherType}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher is(final DispatcherType dispatcherType, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
@@ -380,11 +512,38 @@ public class Matchers {
 
 			/**
 			 * Matches one given {@link DispatcherType}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher is(final DispatcherType dispatcherType, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+				return new Matcher() {
+					@Override
+					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+						return doMatches(request.getDispatcherType() == dispatcherType, context, rules, otherwise);
+					}
+				};
+			}
+
+			/**
+			 * Matches one given {@link DispatcherType}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher is(DispatcherType dispatcherType, Rule ... rules) {
 				if(rules.length == 0) return is(dispatcherType);
 				return is(dispatcherType, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches one given {@link DispatcherType}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher is(DispatcherType dispatcherType, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return is(dispatcherType, rules);
+				return is(dispatcherType, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -428,7 +587,8 @@ public class Matchers {
 
 			/**
 			 * Matches any of a given iterable of {@link DispatcherType}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher in(final Iterable<? extends DispatcherType> dispatcherTypes, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
@@ -448,8 +608,32 @@ public class Matchers {
 			}
 
 			/**
+			 * Matches any of a given iterable of {@link DispatcherType}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher in(final Iterable<? extends DispatcherType> dispatcherTypes, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+				return new Matcher() {
+					@Override
+					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+						boolean matches = false;
+						DispatcherType type = request.getDispatcherType();
+						for(DispatcherType dispatcherType : dispatcherTypes) {
+							if(dispatcherType == type) {
+								matches = true;
+								break;
+							}
+						}
+						return doMatches(matches, context, rules, otherwise);
+					}
+				};
+			}
+
+			/**
 			 * Matches any of a given set of {@link DispatcherType}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher in(final EnumSet<? extends DispatcherType> dispatcherTypes, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
@@ -462,7 +646,23 @@ public class Matchers {
 
 			/**
 			 * Matches any of a given set of {@link DispatcherType}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher in(final EnumSet<? extends DispatcherType> dispatcherTypes, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+				return new Matcher() {
+					@Override
+					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+						return doMatches(dispatcherTypes.contains(request.getDispatcherType()), context, rules, otherwise);
+					}
+				};
+			}
+
+			/**
+			 * Matches any of a given set of {@link DispatcherType}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher in(DispatcherType[] dispatcherTypes, Iterable<? extends Rule> rules) {
 				if(dispatcherTypes.length == 0) return none;
@@ -471,8 +671,21 @@ public class Matchers {
 			}
 
 			/**
+			 * Matches any of a given set of {@link DispatcherType}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher in(DispatcherType[] dispatcherTypes, Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+				if(dispatcherTypes.length == 0) return none;
+				if(dispatcherTypes.length == 1) return is(dispatcherTypes[0], rules, otherwise);
+				return in(EnumSet.of(dispatcherTypes[0], dispatcherTypes), rules, otherwise);
+			}
+
+			/**
 			 * Matches any of a given iterable of {@link DispatcherType}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher in(Iterable<? extends DispatcherType> dispatcherTypes, Rule ... rules) {
 				if(rules.length == 0) return in(dispatcherTypes);
@@ -480,8 +693,20 @@ public class Matchers {
 			}
 
 			/**
+			 * Matches any of a given iterable of {@link DispatcherType}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher in(Iterable<? extends DispatcherType> dispatcherTypes, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return in(dispatcherTypes, rules);
+				return in(dispatcherTypes, Arrays.asList(rules), Arrays.asList(otherwise));
+			}
+
+			/**
 			 * Matches any of a given set of {@link DispatcherType}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher in(EnumSet<? extends DispatcherType> dispatcherTypes, Rule ... rules) {
 				if(rules.length == 0) return in(dispatcherTypes);
@@ -490,7 +715,19 @@ public class Matchers {
 
 			/**
 			 * Matches any of a given set of {@link DispatcherType}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher in(EnumSet<? extends DispatcherType> dispatcherTypes, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return in(dispatcherTypes, rules);
+				return in(dispatcherTypes, Arrays.asList(rules), Arrays.asList(otherwise)); // TODO: Arrays.asList perform AoCollections optimalCopy, document as arrays defensively copied?
+			}
+
+			/**
+			 * Matches any of a given set of {@link DispatcherType}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher in(DispatcherType[] dispatcherTypes, Rule ... rules) {
 				if(dispatcherTypes.length == 0) return none;
@@ -500,13 +737,25 @@ public class Matchers {
 			}
 
 			/**
+			 * Matches any of a given set of {@link DispatcherType}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher in(DispatcherType[] dispatcherTypes, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return in(dispatcherTypes, rules);
+				return in(dispatcherTypes, Arrays.asList(rules), Arrays.asList(otherwise));
+			}
+
+			/**
 			 * Matches {@link DispatcherType#FORWARD}.
 			 */
 			public static final Matcher isForward = new Is(DispatcherType.FORWARD);
 
 			/**
 			 * Matches {@link DispatcherType#FORWARD}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isForward(Iterable<? extends Rule> rules) {
 				return is(DispatcherType.FORWARD, rules);
@@ -514,10 +763,32 @@ public class Matchers {
 
 			/**
 			 * Matches {@link DispatcherType#FORWARD}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isForward(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return is(DispatcherType.FORWARD, rules, otherwise);
+			}
+
+			/**
+			 * Matches {@link DispatcherType#FORWARD}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isForward(Rule ... rules) {
 				return is(DispatcherType.FORWARD, rules);
+			}
+
+			/**
+			 * Matches {@link DispatcherType#FORWARD}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isForward(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isForward(rules);
+				return is(DispatcherType.FORWARD, rules, otherwise);
 			}
 
 			/**
@@ -527,7 +798,8 @@ public class Matchers {
 
 			/**
 			 * Matches {@link DispatcherType#INCLUDE}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isInclude(Iterable<? extends Rule> rules) {
 				return is(DispatcherType.INCLUDE, rules);
@@ -535,10 +807,32 @@ public class Matchers {
 
 			/**
 			 * Matches {@link DispatcherType#INCLUDE}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isInclude(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return is(DispatcherType.INCLUDE, rules, otherwise);
+			}
+
+			/**
+			 * Matches {@link DispatcherType#INCLUDE}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isInclude(Rule ... rules) {
 				return is(DispatcherType.INCLUDE, rules);
+			}
+
+			/**
+			 * Matches {@link DispatcherType#INCLUDE}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isInclude(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isInclude(rules);
+				return is(DispatcherType.INCLUDE, rules, otherwise);
 			}
 
 			/**
@@ -548,7 +842,8 @@ public class Matchers {
 
 			/**
 			 * Matches {@link DispatcherType#REQUEST}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isRequest(Iterable<? extends Rule> rules) {
 				return is(DispatcherType.REQUEST, rules);
@@ -556,10 +851,32 @@ public class Matchers {
 
 			/**
 			 * Matches {@link DispatcherType#REQUEST}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isRequest(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return is(DispatcherType.REQUEST, rules, otherwise);
+			}
+
+			/**
+			 * Matches {@link DispatcherType#REQUEST}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isRequest(Rule ... rules) {
 				return is(DispatcherType.REQUEST, rules);
+			}
+
+			/**
+			 * Matches {@link DispatcherType#REQUEST}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isRequest(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isRequest(rules);
+				return is(DispatcherType.REQUEST, rules, otherwise);
 			}
 
 			/**
@@ -569,7 +886,8 @@ public class Matchers {
 
 			/**
 			 * Matches {@link DispatcherType#ASYNC}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isAsync(Iterable<? extends Rule> rules) {
 				return is(DispatcherType.ASYNC, rules);
@@ -577,10 +895,32 @@ public class Matchers {
 
 			/**
 			 * Matches {@link DispatcherType#ASYNC}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isAsync(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return is(DispatcherType.ASYNC, rules, otherwise);
+			}
+
+			/**
+			 * Matches {@link DispatcherType#ASYNC}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isAsync(Rule ... rules) {
 				return is(DispatcherType.ASYNC, rules);
+			}
+
+			/**
+			 * Matches {@link DispatcherType#ASYNC}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isAsync(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isAsync(rules);
+				return is(DispatcherType.ASYNC, rules, otherwise);
 			}
 
 			/**
@@ -590,7 +930,8 @@ public class Matchers {
 
 			/**
 			 * Matches {@link DispatcherType#ERROR}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isError(Iterable<? extends Rule> rules) {
 				return is(DispatcherType.ERROR, rules);
@@ -598,10 +939,32 @@ public class Matchers {
 
 			/**
 			 * Matches {@link DispatcherType#ERROR}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isError(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return is(DispatcherType.ERROR, rules, otherwise);
+			}
+
+			/**
+			 * Matches {@link DispatcherType#ERROR}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isError(Rule ... rules) {
 				return is(DispatcherType.ERROR, rules);
+			}
+
+			/**
+			 * Matches {@link DispatcherType#ERROR}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isError(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isError(rules);
+				return is(DispatcherType.ERROR, rules, otherwise);
 			}
 		}
 		// </editor-fold>
@@ -630,7 +993,7 @@ public class Matchers {
 
 		// <editor-fold defaultstate="collapsed" desc="HttpServletRequest">
 
-		// <editor-fold defaultstate="collapsed" desc="AuthType">
+		// <editor-fold defaultstate="collapsed" desc="authType">
 		/**
 		 * TODO: Support nulls?
 		 *
@@ -667,7 +1030,8 @@ public class Matchers {
 
 			/**
 			 * Matches one given {@link HttpServletRequest#getAuthType()}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher is(final String authType, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
@@ -681,11 +1045,39 @@ public class Matchers {
 
 			/**
 			 * Matches one given {@link HttpServletRequest#getAuthType()}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher is(final String authType, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+				return new Matcher() {
+					@Override
+					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+						String type = request.getAuthType();
+						return doMatches(type != null && type.equals(authType), context, rules, otherwise);
+					}
+				};
+			}
+
+			/**
+			 * Matches one given {@link HttpServletRequest#getAuthType()}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher is(String authType, Rule ... rules) {
 				if(rules.length == 0) return is(authType);
 				return is(authType, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches one given {@link HttpServletRequest#getAuthType()}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher is(String authType, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return is(authType, rules);
+				return is(authType, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -732,7 +1124,8 @@ public class Matchers {
 
 			/**
 			 * Matches any of a given iterable of {@link HttpServletRequest#getAuthType()}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher in(final Iterable<? extends String> authTypes, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
@@ -754,8 +1147,34 @@ public class Matchers {
 			}
 
 			/**
+			 * Matches any of a given iterable of {@link HttpServletRequest#getAuthType()}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher in(final Iterable<? extends String> authTypes, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+				return new Matcher() {
+					@Override
+					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+						boolean matches = false;
+						String type = request.getAuthType();
+						if(type != null) {
+							for(String authType : authTypes) {
+								if(type.equals(authType)) {
+									matches = true;
+									break;
+								}
+							}
+						}
+						return doMatches(matches, context, rules, otherwise);
+					}
+				};
+			}
+
+			/**
 			 * Matches any of a given set of {@link HttpServletRequest#getAuthType()}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher in(final Collection<? extends String> authTypes, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
@@ -769,7 +1188,24 @@ public class Matchers {
 
 			/**
 			 * Matches any of a given set of {@link HttpServletRequest#getAuthType()}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher in(final Collection<? extends String> authTypes, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+				return new Matcher() {
+					@Override
+					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+						String type = request.getAuthType();
+						return doMatches(type != null && authTypes.contains(type), context, rules, otherwise);
+					}
+				};
+			}
+
+			/**
+			 * Matches any of a given set of {@link HttpServletRequest#getAuthType()}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher in(String[] authTypes, Iterable<? extends Rule> rules) {
 				if(authTypes.length == 0) return none;
@@ -778,8 +1214,21 @@ public class Matchers {
 			}
 
 			/**
+			 * Matches any of a given set of {@link HttpServletRequest#getAuthType()}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher in(String[] authTypes, Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+				if(authTypes.length == 0) return none;
+				if(authTypes.length == 1) return is(authTypes[0], rules);
+				return in(AoCollections.unmodifiableCopySet(Arrays.asList(authTypes)), rules, otherwise);
+			}
+
+			/**
 			 * Matches any of a given iterable of {@link HttpServletRequest#getAuthType()}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher in(Iterable<? extends String> authTypes, Rule ... rules) {
 				if(rules.length == 0) return in(authTypes);
@@ -787,8 +1236,20 @@ public class Matchers {
 			}
 
 			/**
+			 * Matches any of a given iterable of {@link HttpServletRequest#getAuthType()}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher in(Iterable<? extends String> authTypes, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return in(authTypes, rules);
+				return in(authTypes, Arrays.asList(rules), Arrays.asList(otherwise));
+			}
+
+			/**
 			 * Matches any of a given set of {@link HttpServletRequest#getAuthType()}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher in(Collection<? extends String> authTypes, Rule ... rules) {
 				if(rules.length == 0) return in(authTypes);
@@ -797,7 +1258,19 @@ public class Matchers {
 
 			/**
 			 * Matches any of a given set of {@link HttpServletRequest#getAuthType()}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher in(Collection<? extends String> authTypes, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return in(authTypes, rules);
+				return in(authTypes, Arrays.asList(rules), Arrays.asList(otherwise));
+			}
+
+			/**
+			 * Matches any of a given set of {@link HttpServletRequest#getAuthType()}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher in(String[] authTypes, Rule ... rules) {
 				if(authTypes.length == 0) return none;
@@ -807,13 +1280,25 @@ public class Matchers {
 			}
 
 			/**
+			 * Matches any of a given set of {@link HttpServletRequest#getAuthType()}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher in(String[] authTypes, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return in(authTypes, rules);
+				return in(authTypes, Arrays.asList(rules), Arrays.asList(otherwise));
+			}
+
+			/**
 			 * Matches {@link HttpServletRequest#BASIC_AUTH}.
 			 */
 			public static final Matcher isBasic = new Is(HttpServletRequest.BASIC_AUTH);
 
 			/**
 			 * Matches {@link HttpServletRequest#BASIC_AUTH}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isBasic(Iterable<? extends Rule> rules) {
 				return is(HttpServletRequest.BASIC_AUTH, rules);
@@ -821,10 +1306,32 @@ public class Matchers {
 
 			/**
 			 * Matches {@link HttpServletRequest#BASIC_AUTH}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isBasic(Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+				return is(HttpServletRequest.BASIC_AUTH, rules, otherwise);
+			}
+
+			/**
+			 * Matches {@link HttpServletRequest#BASIC_AUTH}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isBasic(Rule ... rules) {
 				return is(HttpServletRequest.BASIC_AUTH, rules);
+			}
+
+			/**
+			 * Matches {@link HttpServletRequest#BASIC_AUTH}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isBasic(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isBasic(rules);
+				return is(HttpServletRequest.BASIC_AUTH, rules, otherwise);
 			}
 
 			/**
@@ -834,7 +1341,8 @@ public class Matchers {
 
 			/**
 			 * Matches {@link HttpServletRequest#FORM_AUTH}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isForm(Iterable<? extends Rule> rules) {
 				return is(HttpServletRequest.FORM_AUTH, rules);
@@ -842,10 +1350,32 @@ public class Matchers {
 
 			/**
 			 * Matches {@link HttpServletRequest#FORM_AUTH}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isForm(Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+				return is(HttpServletRequest.FORM_AUTH, rules, otherwise);
+			}
+
+			/**
+			 * Matches {@link HttpServletRequest#FORM_AUTH}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isForm(Rule ... rules) {
 				return is(HttpServletRequest.FORM_AUTH, rules);
+			}
+
+			/**
+			 * Matches {@link HttpServletRequest#FORM_AUTH}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isForm(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isForm(rules);
+				return is(HttpServletRequest.FORM_AUTH, rules, otherwise);
 			}
 
 			/**
@@ -855,7 +1385,8 @@ public class Matchers {
 
 			/**
 			 * Matches {@link HttpServletRequest#CLIENT_CERT_AUTH}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isClientCert(Iterable<? extends Rule> rules) {
 				return is(HttpServletRequest.CLIENT_CERT_AUTH, rules);
@@ -863,10 +1394,32 @@ public class Matchers {
 
 			/**
 			 * Matches {@link HttpServletRequest#CLIENT_CERT_AUTH}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isClientCert(Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+				return is(HttpServletRequest.CLIENT_CERT_AUTH, rules, otherwise);
+			}
+
+			/**
+			 * Matches {@link HttpServletRequest#CLIENT_CERT_AUTH}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isClientCert(Rule ... rules) {
 				return is(HttpServletRequest.CLIENT_CERT_AUTH, rules);
+			}
+
+			/**
+			 * Matches {@link HttpServletRequest#CLIENT_CERT_AUTH}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isClientCert(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isClientCert(rules);
+				return is(HttpServletRequest.CLIENT_CERT_AUTH, rules, otherwise);
 			}
 
 			/**
@@ -876,7 +1429,8 @@ public class Matchers {
 
 			/**
 			 * Matches {@link HttpServletRequest#DIGEST_AUTH}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isDigest(Iterable<? extends Rule> rules) {
 				return is(HttpServletRequest.DIGEST_AUTH, rules);
@@ -884,10 +1438,32 @@ public class Matchers {
 
 			/**
 			 * Matches {@link HttpServletRequest#DIGEST_AUTH}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isDigest(Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+				return is(HttpServletRequest.DIGEST_AUTH, rules, otherwise);
+			}
+
+			/**
+			 * Matches {@link HttpServletRequest#DIGEST_AUTH}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isDigest(Rule ... rules) {
 				return is(HttpServletRequest.DIGEST_AUTH, rules);
+			}
+
+			/**
+			 * Matches {@link HttpServletRequest#DIGEST_AUTH}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isDigest(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isDigest(rules);
+				return is(HttpServletRequest.DIGEST_AUTH, rules, otherwise);
 			}
 		}
 		// </editor-fold>
@@ -898,7 +1474,7 @@ public class Matchers {
 
 		// TODO: Headers?
 
-		// <editor-fold defaultstate="collapsed" desc="Method">
+		// <editor-fold defaultstate="collapsed" desc="method">
 		/**
 		 * @see  HttpServletRequest#getMethod()
 		 */
@@ -935,7 +1511,8 @@ public class Matchers {
 
 			/**
 			 * Matches one given {@link HttpServletRequest#getMethod()}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher is(final String method, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
@@ -948,11 +1525,38 @@ public class Matchers {
 
 			/**
 			 * Matches one given {@link HttpServletRequest#getMethod()}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher is(final String method, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+				return new Matcher() {
+					@Override
+					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+						return doMatches(request.getMethod().equals(method), context, rules, otherwise);
+					}
+				};
+			}
+
+			/**
+			 * Matches one given {@link HttpServletRequest#getMethod()}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher is(String method, Rule ... rules) {
 				if(rules.length == 0) return is(method);
 				return is(method, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches one given {@link HttpServletRequest#getMethod()}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher is(String method, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return is(method, rules);
+				return is(method, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -996,7 +1600,8 @@ public class Matchers {
 
 			/**
 			 * Matches any of a given iterable of {@link HttpServletRequest#getMethod()}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher in(final Iterable<? extends String> methods, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
@@ -1016,8 +1621,32 @@ public class Matchers {
 			}
 
 			/**
+			 * Matches any of a given iterable of {@link HttpServletRequest#getMethod()}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher in(final Iterable<? extends String> methods, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+				return new Matcher() {
+					@Override
+					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+						boolean matches = false;
+						String m = request.getMethod();
+						for(String method : methods) {
+							if(m.equals(method)) {
+								matches = true;
+								break;
+							}
+						}
+						return doMatches(matches, context, rules, otherwise);
+					}
+				};
+			}
+
+			/**
 			 * Matches any of a given set of {@link HttpServletRequest#getMethod()}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher in(final Collection<? extends String> methods, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
@@ -1030,7 +1659,23 @@ public class Matchers {
 
 			/**
 			 * Matches any of a given set of {@link HttpServletRequest#getMethod()}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher in(final Collection<? extends String> methods, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+				return new Matcher() {
+					@Override
+					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+						return doMatches(methods.contains(request.getMethod()), context, rules, otherwise);
+					}
+				};
+			}
+
+			/**
+			 * Matches any of a given set of {@link HttpServletRequest#getMethod()}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher in(String[] methods, Iterable<? extends Rule> rules) {
 				if(methods.length == 0) return none;
@@ -1039,8 +1684,21 @@ public class Matchers {
 			}
 
 			/**
+			 * Matches any of a given set of {@link HttpServletRequest#getMethod()}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher in(String[] methods, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				if(methods.length == 0) return none;
+				if(methods.length == 1) return is(methods[0], rules, otherwise);
+				return in(AoCollections.unmodifiableCopySet(Arrays.asList(methods)), rules, otherwise);
+			}
+
+			/**
 			 * Matches any of a given iterable of {@link HttpServletRequest#getMethod()}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher in(Iterable<? extends String> methods, Rule ... rules) {
 				if(rules.length == 0) return in(methods);
@@ -1048,8 +1706,20 @@ public class Matchers {
 			}
 
 			/**
+			 * Matches any of a given iterable of {@link HttpServletRequest#getMethod()}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher in(Iterable<? extends String> methods, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return in(methods, rules);
+				return in(methods, Arrays.asList(rules), Arrays.asList(otherwise));
+			}
+
+			/**
 			 * Matches any of a given set of {@link HttpServletRequest#getMethod()}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher in(Collection<? extends String> methods, Rule ... rules) {
 				if(rules.length == 0) return in(methods);
@@ -1058,7 +1728,19 @@ public class Matchers {
 
 			/**
 			 * Matches any of a given set of {@link HttpServletRequest#getMethod()}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher in(Collection<? extends String> methods, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return in(methods, rules);
+				return in(methods, Arrays.asList(rules), Arrays.asList(otherwise));
+			}
+
+			/**
+			 * Matches any of a given set of {@link HttpServletRequest#getMethod()}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher in(String[] methods, Rule ... rules) {
 				if(methods.length == 0) return none;
@@ -1068,13 +1750,25 @@ public class Matchers {
 			}
 
 			/**
+			 * Matches any of a given set of {@link HttpServletRequest#getMethod()}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher in(String[] methods, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return in(methods, rules);
+				return in(methods, Arrays.asList(rules), Arrays.asList(otherwise));
+			}
+
+			/**
 			 * Matches {@link ServletUtil#METHOD_DELETE}.
 			 */
 			public static final Matcher isDelete = new Is(ServletUtil.METHOD_DELETE);
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_DELETE}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isDelete(Iterable<? extends Rule> rules) {
 				return is(ServletUtil.METHOD_DELETE, rules);
@@ -1082,10 +1776,32 @@ public class Matchers {
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_DELETE}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isDelete(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return is(ServletUtil.METHOD_DELETE, rules, otherwise);
+			}
+
+			/**
+			 * Matches {@link ServletUtil#METHOD_DELETE}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isDelete(Rule ... rules) {
 				return is(ServletUtil.METHOD_DELETE, rules);
+			}
+
+			/**
+			 * Matches {@link ServletUtil#METHOD_DELETE}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isDelete(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isDelete(rules);
+				return is(ServletUtil.METHOD_DELETE, rules, otherwise);
 			}
 
 			/**
@@ -1095,7 +1811,8 @@ public class Matchers {
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_HEAD}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isHead(Iterable<? extends Rule> rules) {
 				return is(ServletUtil.METHOD_HEAD, rules);
@@ -1103,10 +1820,32 @@ public class Matchers {
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_HEAD}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isHead(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return is(ServletUtil.METHOD_HEAD, rules, otherwise);
+			}
+
+			/**
+			 * Matches {@link ServletUtil#METHOD_HEAD}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isHead(Rule ... rules) {
 				return is(ServletUtil.METHOD_HEAD, rules);
+			}
+
+			/**
+			 * Matches {@link ServletUtil#METHOD_HEAD}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isHead(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isHead(rules);
+				return is(ServletUtil.METHOD_HEAD, rules, otherwise);
 			}
 
 			/**
@@ -1116,7 +1855,8 @@ public class Matchers {
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_GET}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isGet(Iterable<? extends Rule> rules) {
 				return is(ServletUtil.METHOD_GET, rules);
@@ -1124,10 +1864,32 @@ public class Matchers {
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_GET}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isGet(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return is(ServletUtil.METHOD_GET, rules, otherwise);
+			}
+
+			/**
+			 * Matches {@link ServletUtil#METHOD_GET}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isGet(Rule ... rules) {
 				return is(ServletUtil.METHOD_GET, rules);
+			}
+
+			/**
+			 * Matches {@link ServletUtil#METHOD_GET}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isGet(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isGet(rules);
+				return is(ServletUtil.METHOD_GET, rules, otherwise);
 			}
 
 			/**
@@ -1137,7 +1899,8 @@ public class Matchers {
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_OPTIONS}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isOptions(Iterable<? extends Rule> rules) {
 				return is(ServletUtil.METHOD_OPTIONS, rules);
@@ -1145,10 +1908,32 @@ public class Matchers {
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_OPTIONS}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isOptions(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return is(ServletUtil.METHOD_OPTIONS, rules, otherwise);
+			}
+
+			/**
+			 * Matches {@link ServletUtil#METHOD_OPTIONS}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isOptions(Rule ... rules) {
 				return is(ServletUtil.METHOD_OPTIONS, rules);
+			}
+
+			/**
+			 * Matches {@link ServletUtil#METHOD_OPTIONS}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isOptions(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isOptions(rules);
+				return is(ServletUtil.METHOD_OPTIONS, rules, otherwise);
 			}
 
 			/**
@@ -1158,7 +1943,8 @@ public class Matchers {
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_POST}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isPost(Iterable<? extends Rule> rules) {
 				return is(ServletUtil.METHOD_POST, rules);
@@ -1166,10 +1952,32 @@ public class Matchers {
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_POST}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isPost(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return is(ServletUtil.METHOD_POST, rules, otherwise);
+			}
+
+			/**
+			 * Matches {@link ServletUtil#METHOD_POST}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isPost(Rule ... rules) {
 				return is(ServletUtil.METHOD_POST, rules);
+			}
+
+			/**
+			 * Matches {@link ServletUtil#METHOD_POST}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isPost(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isPost(rules);
+				return is(ServletUtil.METHOD_POST, rules, otherwise);
 			}
 
 			/**
@@ -1179,7 +1987,8 @@ public class Matchers {
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_PUT}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isPut(Iterable<? extends Rule> rules) {
 				return is(ServletUtil.METHOD_PUT, rules);
@@ -1187,10 +1996,32 @@ public class Matchers {
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_PUT}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isPut(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return is(ServletUtil.METHOD_PUT, rules, otherwise);
+			}
+
+			/**
+			 * Matches {@link ServletUtil#METHOD_PUT}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isPut(Rule ... rules) {
 				return is(ServletUtil.METHOD_PUT, rules);
+			}
+
+			/**
+			 * Matches {@link ServletUtil#METHOD_PUT}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isPut(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isPut(rules);
+				return is(ServletUtil.METHOD_PUT, rules, otherwise);
 			}
 
 			/**
@@ -1200,7 +2031,8 @@ public class Matchers {
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_TRACE}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isTrace(Iterable<? extends Rule> rules) {
 				return is(ServletUtil.METHOD_TRACE, rules);
@@ -1208,10 +2040,32 @@ public class Matchers {
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_TRACE}.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isTrace(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return is(ServletUtil.METHOD_TRACE, rules, otherwise);
+			}
+
+			/**
+			 * Matches {@link ServletUtil#METHOD_TRACE}.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isTrace(Rule ... rules) {
 				return is(ServletUtil.METHOD_TRACE, rules);
+			}
+
+			/**
+			 * Matches {@link ServletUtil#METHOD_TRACE}.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 */
+			public static Matcher isTrace(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isTrace(rules);
+				return is(ServletUtil.METHOD_TRACE, rules, otherwise);
 			}
 		}
 		// </editor-fold>
@@ -1302,7 +2156,7 @@ public class Matchers {
 			 * @param  prefixPath  See {@link PathMatch#getPrefixPath()}
 			 * @param  path  See {@link PathMatch#getPath()}
 			 *
-			 * @see  #perform(com.aoindustries.servlet.firewall.rules.FirewallContext, javax.servlet.http.HttpServletRequest)
+			 * @see  #perform(com.aoindustries.servlet.firewall.api.FirewallContext, javax.servlet.http.HttpServletRequest)
 			 */
 			abstract protected boolean matches(
 				FirewallContext context,
@@ -1357,6 +2211,53 @@ public class Matchers {
 			) throws IOException, ServletException;
 		}
 
+		private abstract static class PathMatchMatcherWithRulesAndOtherwise implements Matcher {
+
+			private final Iterable<? extends Rule> rules;
+			private final Iterable<? extends Rule> otherwise;
+
+			private PathMatchMatcherWithRulesAndOtherwise(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				this.rules = rules;
+				this.otherwise = otherwise;
+			}
+
+			//private PathMatchMatcherWithRulesAndOtherwise(Rule[] rules, Rule ... otherwise) {
+			//	this(Arrays.asList(rules), Arrays.asList(otherwise));
+			//}
+
+			@Override
+			final public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+				PathMatch<?> pathMatch = getPathMatch(context);
+				return doMatches(
+					matches(
+						context,
+						request,
+						pathMatch.getPrefix(),
+						pathMatch.getPrefixPath(),
+						pathMatch.getPath()
+					),
+					context,
+					rules,
+					otherwise
+				);
+			}
+
+			/**
+			 * @param  prefix  See {@link PathMatch#getPrefix()}
+			 * @param  prefixPath  See {@link PathMatch#getPrefixPath()}
+			 * @param  path  See {@link PathMatch#getPath()}
+			 *
+			 * @see  #perform(com.aoindustries.servlet.firewall.api.FirewallContext, javax.servlet.http.HttpServletRequest)
+			 */
+			abstract protected boolean matches(
+				FirewallContext context,
+				HttpServletRequest request,
+				com.aoindustries.net.pathspace.Prefix prefix,
+				Path prefixPath,
+				Path path
+			) throws IOException, ServletException;
+		}
+
 		// <editor-fold defaultstate="collapsed" desc="prefix">
 		/**
 		 * @see  PathMatch#getPrefix()
@@ -1383,7 +2284,8 @@ public class Matchers {
 			/**
 			 * Matches when a request prefix starts with a given string, case-sensitive.
 			 * Matches when prefix is empty.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#startsWith(java.lang.String)
 			 */
@@ -1399,13 +2301,46 @@ public class Matchers {
 			/**
 			 * Matches when a request prefix starts with a given string, case-sensitive.
 			 * Matches when prefix is empty.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#startsWith(java.lang.String)
+			 */
+			public static Matcher startsWith(final String prefix, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix _prefix, Path prefixPath, Path path) {
+						return _prefix.toString().startsWith(prefix);
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request prefix starts with a given string, case-sensitive.
+			 * Matches when prefix is empty.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#startsWith(java.lang.String)
 			 */
 			public static Matcher startsWith(String prefix, Rule ... rules) {
 				if(rules.length == 0) return startsWith(prefix);
 				return startsWith(prefix, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request prefix starts with a given string, case-sensitive.
+			 * Matches when prefix is empty.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#startsWith(java.lang.String)
+			 */
+			public static Matcher startsWith(String prefix, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return startsWith(prefix, rules);
+				return startsWith(prefix, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -1426,12 +2361,13 @@ public class Matchers {
 			/**
 			 * Matches when a request prefix ends with a given string, case-sensitive.
 			 * Matches when suffix is empty.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#endsWith(java.lang.String)
 			 */
 			public static Matcher endsWith(final String suffix, Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
 					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix _prefix, Path prefixPath, Path path) {
 						return _prefix.toString().endsWith(suffix);
@@ -1442,13 +2378,46 @@ public class Matchers {
 			/**
 			 * Matches when a request prefix ends with a given string, case-sensitive.
 			 * Matches when suffix is empty.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#endsWith(java.lang.String)
+			 */
+			public static Matcher endsWith(final String suffix, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix _prefix, Path prefixPath, Path path) {
+						return _prefix.toString().endsWith(suffix);
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request prefix ends with a given string, case-sensitive.
+			 * Matches when suffix is empty.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#endsWith(java.lang.String)
 			 */
 			public static Matcher endsWith(String suffix, Rule ... rules) {
 				if(rules.length == 0) return endsWith(suffix);
 				return endsWith(suffix, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request prefix ends with a given string, case-sensitive.
+			 * Matches when suffix is empty.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#endsWith(java.lang.String)
+			 */
+			public static Matcher endsWith(String suffix, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return endsWith(suffix, rules);
+				return endsWith(suffix, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -1469,7 +2438,8 @@ public class Matchers {
 			/**
 			 * Matches when a request prefix contains a given character sequence, case-sensitive.
 			 * Matches when substring is empty.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#contains(java.lang.CharSequence)
 			 */
@@ -1485,13 +2455,46 @@ public class Matchers {
 			/**
 			 * Matches when a request prefix contains a given character sequence, case-sensitive.
 			 * Matches when substring is empty.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#contains(java.lang.CharSequence)
+			 */
+			public static Matcher contains(final CharSequence substring, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefix.toString().contains(substring);
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request prefix contains a given character sequence, case-sensitive.
+			 * Matches when substring is empty.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#contains(java.lang.CharSequence)
 			 */
 			public static Matcher contains(CharSequence substring, Rule ... rules) {
 				if(rules.length == 0) return contains(substring);
 				return contains(substring, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request prefix contains a given character sequence, case-sensitive.
+			 * Matches when substring is empty.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#contains(java.lang.CharSequence)
+			 */
+			public static Matcher contains(CharSequence substring, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return contains(substring, rules);
+				return contains(substring, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -1510,7 +2513,8 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix is equal to a given string, case-sensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  com.aoindustries.net.pathspace.Prefix#equals(java.lang.Object)
 			 */
@@ -1525,13 +2529,44 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix is equal to a given string, case-sensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  com.aoindustries.net.pathspace.Prefix#equals(java.lang.Object)
+			 */
+			public static Matcher equals(final com.aoindustries.net.pathspace.Prefix target, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefix.equals(target);
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request prefix is equal to a given string, case-sensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  com.aoindustries.net.pathspace.Prefix#equals(java.lang.Object)
 			 */
 			public static Matcher equals(com.aoindustries.net.pathspace.Prefix target, Rule ... rules) {
 				if(rules.length == 0) return equals(target);
 				return equals(target, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request prefix is equal to a given string, case-sensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  com.aoindustries.net.pathspace.Prefix#equals(java.lang.Object)
+			 */
+			public static Matcher equals(com.aoindustries.net.pathspace.Prefix target, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return equals(target, rules);
+				return equals(target, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -1545,7 +2580,8 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix is equal to a given string, case-sensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  com.aoindustries.net.pathspace.Prefix#valueOf(java.lang.String)
 			 */
@@ -1555,12 +2591,38 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix is equal to a given string, case-sensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  com.aoindustries.net.pathspace.Prefix#valueOf(java.lang.String)
+			 */
+			public static Matcher equals(String target, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return equals(com.aoindustries.net.pathspace.Prefix.valueOf(target), rules, otherwise);
+			}
+
+			/**
+			 * Matches when a request prefix is equal to a given string, case-sensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  com.aoindustries.net.pathspace.Prefix#valueOf(java.lang.String)
 			 */
 			public static Matcher equals(String target, Rule ... rules) {
 				return equals(com.aoindustries.net.pathspace.Prefix.valueOf(target), rules);
+			}
+
+			/**
+			 * Matches when a request prefix is equal to a given string, case-sensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  com.aoindustries.net.pathspace.Prefix#valueOf(java.lang.String)
+			 */
+			public static Matcher equals(String target, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return equals(target, rules);
+				return equals(com.aoindustries.net.pathspace.Prefix.valueOf(target), rules, otherwise);
 			}
 
 			/**
@@ -1579,7 +2641,8 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix is equal to a given character sequence, case-sensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#contentEquals(java.lang.CharSequence)
 			 */
@@ -1594,13 +2657,44 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix is equal to a given character sequence, case-sensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#contentEquals(java.lang.CharSequence)
+			 */
+			public static Matcher equals(final CharSequence target, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefix.toString().contentEquals(target);
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request prefix is equal to a given character sequence, case-sensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#contentEquals(java.lang.CharSequence)
 			 */
 			public static Matcher equals(CharSequence target, Rule ... rules) {
 				if(rules.length == 0) return equals(target);
 				return equals(target, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request prefix is equal to a given character sequence, case-sensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#contentEquals(java.lang.CharSequence)
+			 */
+			public static Matcher equals(CharSequence target, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return equals(target, rules);
+				return equals(target, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -1619,7 +2713,8 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix is equal to a given string, case-insensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#equalsIgnoreCase(java.lang.String)
 			 */
@@ -1634,13 +2729,44 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix is equal to a given string, case-insensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#equalsIgnoreCase(java.lang.String)
+			 */
+			public static Matcher equalsIgnoreCase(final String target, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefix.toString().equalsIgnoreCase(target);
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request prefix is equal to a given string, case-insensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#equalsIgnoreCase(java.lang.String)
 			 */
 			public static Matcher equalsIgnoreCase(String target, Rule ... rules) {
 				if(rules.length == 0) return equalsIgnoreCase(target);
 				return equalsIgnoreCase(target, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request prefix is equal to a given string, case-insensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#equalsIgnoreCase(java.lang.String)
+			 */
+			public static Matcher equalsIgnoreCase(String target, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return equalsIgnoreCase(target, rules);
+				return equalsIgnoreCase(target, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -1660,7 +2786,8 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix matches a given regular expression.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  Pattern#compile(java.lang.String)
 			 * @see  Pattern#compile(java.lang.String, int)
@@ -1676,7 +2803,26 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix matches a given regular expression.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  Pattern#compile(java.lang.String)
+			 * @see  Pattern#compile(java.lang.String, int)
+			 */
+			public static Matcher matches(final Pattern pattern, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return pattern.matcher(prefix.toString()).matches();
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request prefix matches a given regular expression.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  Pattern#compile(java.lang.String)
 			 * @see  Pattern#compile(java.lang.String, int)
@@ -1684,6 +2830,20 @@ public class Matchers {
 			public static Matcher matches(Pattern pattern, Rule ... rules) {
 				if(rules.length == 0) return matches(pattern);
 				return matches(pattern, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request prefix matches a given regular expression.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  Pattern#compile(java.lang.String)
+			 * @see  Pattern#compile(java.lang.String, int)
+			 */
+			public static Matcher matches(Pattern pattern, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return matches(pattern, rules);
+				return matches(pattern, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -1709,11 +2869,12 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix matches a given {@link WildcardPatternMatcher}.
-			 * Invokes the provided rules only when matched.
 			 * <p>
 			 * {@link WildcardPatternMatcher} can significantly outperform {@link Pattern},
 			 * especially in suffix matching.
 			 * </p>
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  WildcardPatternMatcher#compile(java.lang.String)
 			 */
@@ -1728,17 +2889,56 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix matches a given {@link WildcardPatternMatcher}.
-			 * Invokes the provided rules only when matched.
 			 * <p>
 			 * {@link WildcardPatternMatcher} can significantly outperform {@link Pattern},
 			 * especially in suffix matching.
 			 * </p>
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  WildcardPatternMatcher#compile(java.lang.String)
+			 */
+			public static Matcher matches(final WildcardPatternMatcher wildcardPattern, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return wildcardPattern.isMatch(prefix.toString());
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request prefix matches a given {@link WildcardPatternMatcher}.
+			 * <p>
+			 * {@link WildcardPatternMatcher} can significantly outperform {@link Pattern},
+			 * especially in suffix matching.
+			 * </p>
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  WildcardPatternMatcher#compile(java.lang.String)
 			 */
 			public static Matcher matches(WildcardPatternMatcher wildcardPattern, Rule ... rules) {
 				if(rules.length == 0) return matches(wildcardPattern);
 				return matches(wildcardPattern, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request prefix matches a given {@link WildcardPatternMatcher}.
+			 * <p>
+			 * {@link WildcardPatternMatcher} can significantly outperform {@link Pattern},
+			 * especially in suffix matching.
+			 * </p>
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  WildcardPatternMatcher#compile(java.lang.String)
+			 */
+			public static Matcher matches(WildcardPatternMatcher wildcardPattern, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return matches(wildcardPattern, rules);
+				return matches(wildcardPattern, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 		}
 		// </editor-fold>
@@ -1769,7 +2969,8 @@ public class Matchers {
 			/**
 			 * Matches when a request prefix path starts with a given string, case-sensitive.
 			 * Matches when prefix is empty.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#startsWith(java.lang.String)
 			 */
@@ -1785,13 +2986,46 @@ public class Matchers {
 			/**
 			 * Matches when a request prefix path starts with a given string, case-sensitive.
 			 * Matches when prefix is empty.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#startsWith(java.lang.String)
+			 */
+			public static Matcher startsWith(final String prefix, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix _prefix, Path prefixPath, Path path) {
+						return prefixPath.toString().startsWith(prefix);
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request prefix path starts with a given string, case-sensitive.
+			 * Matches when prefix is empty.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#startsWith(java.lang.String)
 			 */
 			public static Matcher startsWith(String prefix, Rule ... rules) {
 				if(rules.length == 0) return startsWith(prefix);
 				return startsWith(prefix, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request prefix path starts with a given string, case-sensitive.
+			 * Matches when prefix is empty.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#startsWith(java.lang.String)
+			 */
+			public static Matcher startsWith(String prefix, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return startsWith(prefix, rules);
+				return startsWith(prefix, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -1812,7 +3046,8 @@ public class Matchers {
 			/**
 			 * Matches when a request prefix path ends with a given string, case-sensitive.
 			 * Matches when suffix is empty.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#endsWith(java.lang.String)
 			 */
@@ -1828,13 +3063,46 @@ public class Matchers {
 			/**
 			 * Matches when a request prefix path ends with a given string, case-sensitive.
 			 * Matches when suffix is empty.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#endsWith(java.lang.String)
+			 */
+			public static Matcher endsWith(final String suffix, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefixPath.toString().endsWith(suffix);
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request prefix path ends with a given string, case-sensitive.
+			 * Matches when suffix is empty.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#endsWith(java.lang.String)
 			 */
 			public static Matcher endsWith(String suffix, Rule ... rules) {
 				if(rules.length == 0) return endsWith(suffix);
 				return endsWith(suffix, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request prefix path ends with a given string, case-sensitive.
+			 * Matches when suffix is empty.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#endsWith(java.lang.String)
+			 */
+			public static Matcher endsWith(String suffix, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return endsWith(suffix, rules);
+				return endsWith(suffix, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -1855,7 +3123,8 @@ public class Matchers {
 			/**
 			 * Matches when a request prefix path contains a given character sequence, case-sensitive.
 			 * Matches when substring is empty.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#contains(java.lang.CharSequence)
 			 */
@@ -1871,13 +3140,46 @@ public class Matchers {
 			/**
 			 * Matches when a request prefix path contains a given character sequence, case-sensitive.
 			 * Matches when substring is empty.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#contains(java.lang.CharSequence)
+			 */
+			public static Matcher contains(final CharSequence substring, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefixPath.toString().contains(substring);
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request prefix path contains a given character sequence, case-sensitive.
+			 * Matches when substring is empty.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#contains(java.lang.CharSequence)
 			 */
 			public static Matcher contains(CharSequence substring, Rule ... rules) {
 				if(rules.length == 0) return contains(substring);
 				return contains(substring, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request prefix path contains a given character sequence, case-sensitive.
+			 * Matches when substring is empty.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#contains(java.lang.CharSequence)
+			 */
+			public static Matcher contains(CharSequence substring, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return contains(substring, rules);
+				return contains(substring, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -1896,7 +3198,8 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix path is equal to a given string, case-sensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  Path#equals(java.lang.Object)
 			 */
@@ -1911,13 +3214,44 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix path is equal to a given string, case-sensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  Path#equals(java.lang.Object)
+			 */
+			public static Matcher equals(final Path target, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefixPath.equals(target);
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request prefix path is equal to a given string, case-sensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  Path#equals(java.lang.Object)
 			 */
 			public static Matcher equals(Path target, Rule ... rules) {
 				if(rules.length == 0) return equals(target);
 				return equals(target, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request prefix path is equal to a given string, case-sensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  Path#equals(java.lang.Object)
+			 */
+			public static Matcher equals(Path target, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return equals(target, rules);
+				return equals(target, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -1935,7 +3269,8 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix path is equal to a given string, case-sensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  Path#valueOf(java.lang.String)
 			 */
@@ -1949,13 +3284,46 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix path is equal to a given string, case-sensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  Path#valueOf(java.lang.String)
+			 */
+			public static Matcher equals(String target, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				try {
+					return equals(Path.valueOf(target), rules, otherwise);
+				} catch(ValidationException e) {
+					throw new IllegalArgumentException(e);
+				}
+			}
+
+			/**
+			 * Matches when a request prefix path is equal to a given string, case-sensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  Path#valueOf(java.lang.String)
 			 */
 			public static Matcher equals(String target, Rule ... rules) {
 				try {
 					return equals(Path.valueOf(target), rules);
+				} catch(ValidationException e) {
+					throw new IllegalArgumentException(e);
+				}
+			}
+
+			/**
+			 * Matches when a request prefix path is equal to a given string, case-sensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  Path#valueOf(java.lang.String)
+			 */
+			public static Matcher equals(String target, Rule[] rules, Rule ... otherwise) {
+				try {
+					return equals(Path.valueOf(target), rules, otherwise);
 				} catch(ValidationException e) {
 					throw new IllegalArgumentException(e);
 				}
@@ -1977,11 +3345,12 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix path is equal to a given character sequence, case-sensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#contentEquals(java.lang.CharSequence)
 			 */
-			public static Matcher equals(final CharSequence target, Iterable<? extends Rule> rules) { // TODO:Final not needed
+			public static Matcher equals(final CharSequence target, Iterable<? extends Rule> rules) {
 				return new PathMatchMatcherWithRules(rules) {
 					@Override
 					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
@@ -1992,13 +3361,44 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix path is equal to a given character sequence, case-sensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#contentEquals(java.lang.CharSequence)
+			 */
+			public static Matcher equals(final CharSequence target, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefixPath.toString().contentEquals(target);
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request prefix path is equal to a given character sequence, case-sensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#contentEquals(java.lang.CharSequence)
 			 */
 			public static Matcher equals(CharSequence target, Rule ... rules) {
 				if(rules.length == 0) return equals(target);
 				return equals(target, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request prefix path is equal to a given character sequence, case-sensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#contentEquals(java.lang.CharSequence)
+			 */
+			public static Matcher equals(CharSequence target, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return equals(target, rules);
+				return equals(target, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -2017,7 +3417,8 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix path is equal to a given string, case-insensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#equalsIgnoreCase(java.lang.String)
 			 */
@@ -2032,13 +3433,44 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix path is equal to a given string, case-insensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#equalsIgnoreCase(java.lang.String)
+			 */
+			public static Matcher equalsIgnoreCase(final String target, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefixPath.toString().equalsIgnoreCase(target);
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request prefix path is equal to a given string, case-insensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#equalsIgnoreCase(java.lang.String)
 			 */
 			public static Matcher equalsIgnoreCase(String target, Rule ... rules) {
 				if(rules.length == 0) return equalsIgnoreCase(target);
 				return equalsIgnoreCase(target, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request prefix path is equal to a given string, case-insensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#equalsIgnoreCase(java.lang.String)
+			 */
+			public static Matcher equalsIgnoreCase(String target, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return equalsIgnoreCase(target, rules);
+				return equalsIgnoreCase(target, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -2058,7 +3490,8 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix path matches a given regular expression.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  Pattern#compile(java.lang.String)
 			 * @see  Pattern#compile(java.lang.String, int)
@@ -2074,7 +3507,26 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix path matches a given regular expression.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  Pattern#compile(java.lang.String)
+			 * @see  Pattern#compile(java.lang.String, int)
+			 */
+			public static Matcher matches(final Pattern pattern, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return pattern.matcher(prefixPath.toString()).matches();
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request prefix path matches a given regular expression.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  Pattern#compile(java.lang.String)
 			 * @see  Pattern#compile(java.lang.String, int)
@@ -2082,6 +3534,20 @@ public class Matchers {
 			public static Matcher matches(Pattern pattern, Rule ... rules) {
 				if(rules.length == 0) return matches(pattern);
 				return matches(pattern, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request prefix path matches a given regular expression.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  Pattern#compile(java.lang.String)
+			 * @see  Pattern#compile(java.lang.String, int)
+			 */
+			public static Matcher matches(Pattern pattern, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return matches(pattern, rules);
+				return matches(pattern, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -2107,11 +3573,12 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix path matches a given {@link WildcardPatternMatcher}.
-			 * Invokes the provided rules only when matched.
 			 * <p>
 			 * {@link WildcardPatternMatcher} can significantly outperform {@link Pattern},
 			 * especially in suffix matching.
 			 * </p>
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  WildcardPatternMatcher#compile(java.lang.String)
 			 */
@@ -2126,17 +3593,56 @@ public class Matchers {
 
 			/**
 			 * Matches when a request prefix path matches a given {@link WildcardPatternMatcher}.
-			 * Invokes the provided rules only when matched.
 			 * <p>
 			 * {@link WildcardPatternMatcher} can significantly outperform {@link Pattern},
 			 * especially in suffix matching.
 			 * </p>
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  WildcardPatternMatcher#compile(java.lang.String)
+			 */
+			public static Matcher matches(final WildcardPatternMatcher wildcardPattern, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return wildcardPattern.isMatch(prefixPath.toString());
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request prefix path matches a given {@link WildcardPatternMatcher}.
+			 * <p>
+			 * {@link WildcardPatternMatcher} can significantly outperform {@link Pattern},
+			 * especially in suffix matching.
+			 * </p>
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  WildcardPatternMatcher#compile(java.lang.String)
 			 */
 			public static Matcher matches(WildcardPatternMatcher wildcardPattern, Rule ... rules) {
 				if(rules.length == 0) return matches(wildcardPattern);
 				return matches(wildcardPattern, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request prefix path matches a given {@link WildcardPatternMatcher}.
+			 * <p>
+			 * {@link WildcardPatternMatcher} can significantly outperform {@link Pattern},
+			 * especially in suffix matching.
+			 * </p>
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  WildcardPatternMatcher#compile(java.lang.String)
+			 */
+			public static Matcher matches(WildcardPatternMatcher wildcardPattern, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return matches(wildcardPattern, rules);
+				return matches(wildcardPattern, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 		}
 		// </editor-fold>
@@ -2167,7 +3673,8 @@ public class Matchers {
 			/**
 			 * Matches when a request path starts with a given string, case-sensitive.
 			 * Matches when prefix is empty.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#startsWith(java.lang.String)
 			 */
@@ -2183,13 +3690,46 @@ public class Matchers {
 			/**
 			 * Matches when a request path starts with a given string, case-sensitive.
 			 * Matches when prefix is empty.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#startsWith(java.lang.String)
+			 */
+			public static Matcher startsWith(final String prefix, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix _prefix, Path prefixPath, Path path) {
+						return path.toString().startsWith(prefix);
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request path starts with a given string, case-sensitive.
+			 * Matches when prefix is empty.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#startsWith(java.lang.String)
 			 */
 			public static Matcher startsWith(String prefix, Rule ... rules) {
 				if(rules.length == 0) return startsWith(prefix);
 				return startsWith(prefix, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request path starts with a given string, case-sensitive.
+			 * Matches when prefix is empty.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#startsWith(java.lang.String)
+			 */
+			public static Matcher startsWith(String prefix, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return startsWith(prefix, rules);
+				return startsWith(prefix, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -2210,7 +3750,8 @@ public class Matchers {
 			/**
 			 * Matches when a request path ends with a given string, case-sensitive.
 			 * Matches when suffix is empty.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#endsWith(java.lang.String)
 			 */
@@ -2226,13 +3767,46 @@ public class Matchers {
 			/**
 			 * Matches when a request path ends with a given string, case-sensitive.
 			 * Matches when suffix is empty.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#endsWith(java.lang.String)
+			 */
+			public static Matcher endsWith(final String suffix, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return path.toString().endsWith(suffix);
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request path ends with a given string, case-sensitive.
+			 * Matches when suffix is empty.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#endsWith(java.lang.String)
 			 */
 			public static Matcher endsWith(String suffix, Rule ... rules) {
 				if(rules.length == 0) return endsWith(suffix);
 				return endsWith(suffix, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request path ends with a given string, case-sensitive.
+			 * Matches when suffix is empty.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#endsWith(java.lang.String)
+			 */
+			public static Matcher endsWith(String suffix, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return endsWith(suffix, rules);
+				return endsWith(suffix, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -2253,7 +3827,8 @@ public class Matchers {
 			/**
 			 * Matches when a request path contains a given character sequence, case-sensitive.
 			 * Matches when substring is empty.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#contains(java.lang.CharSequence)
 			 */
@@ -2269,13 +3844,46 @@ public class Matchers {
 			/**
 			 * Matches when a request path contains a given character sequence, case-sensitive.
 			 * Matches when substring is empty.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#contains(java.lang.CharSequence)
+			 */
+			public static Matcher contains(final CharSequence substring, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return path.toString().contains(substring);
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request path contains a given character sequence, case-sensitive.
+			 * Matches when substring is empty.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#contains(java.lang.CharSequence)
 			 */
 			public static Matcher contains(CharSequence substring, Rule ... rules) {
 				if(rules.length == 0) return contains(substring);
 				return contains(substring, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request path contains a given character sequence, case-sensitive.
+			 * Matches when substring is empty.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#contains(java.lang.CharSequence)
+			 */
+			public static Matcher contains(CharSequence substring, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return contains(substring, rules);
+				return contains(substring, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -2294,7 +3902,8 @@ public class Matchers {
 
 			/**
 			 * Matches when a request path is equal to a given string, case-sensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  Path#equals(java.lang.Object)
 			 */
@@ -2309,13 +3918,44 @@ public class Matchers {
 
 			/**
 			 * Matches when a request path is equal to a given string, case-sensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  Path#equals(java.lang.Object)
+			 */
+			public static Matcher equals(final Path target, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return path.equals(target);
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request path is equal to a given string, case-sensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  Path#equals(java.lang.Object)
 			 */
 			public static Matcher equals(Path target, Rule ... rules) {
 				if(rules.length == 0) return equals(target);
 				return equals(target, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request path is equal to a given string, case-sensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  Path#equals(java.lang.Object)
+			 */
+			public static Matcher equals(Path target, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return equals(target, rules);
+				return equals(target, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -2333,7 +3973,8 @@ public class Matchers {
 
 			/**
 			 * Matches when a request path is equal to a given string, case-sensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  Path#valueOf(java.lang.String)
 			 */
@@ -2347,13 +3988,46 @@ public class Matchers {
 
 			/**
 			 * Matches when a request path is equal to a given string, case-sensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  Path#valueOf(java.lang.String)
+			 */
+			public static Matcher equals(String target, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				try {
+					return equals(Path.valueOf(target), rules, otherwise);
+				} catch(ValidationException e) {
+					throw new IllegalArgumentException(e);
+				}
+			}
+
+			/**
+			 * Matches when a request path is equal to a given string, case-sensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  Path#valueOf(java.lang.String)
 			 */
 			public static Matcher equals(String target, Rule ... rules) {
 				try {
 					return equals(Path.valueOf(target), rules);
+				} catch(ValidationException e) {
+					throw new IllegalArgumentException(e);
+				}
+			}
+
+			/**
+			 * Matches when a request path is equal to a given string, case-sensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  Path#valueOf(java.lang.String)
+			 */
+			public static Matcher equals(String target, Rule[] rules, Rule ... otherwise) {
+				try {
+					return equals(Path.valueOf(target), rules, otherwise);
 				} catch(ValidationException e) {
 					throw new IllegalArgumentException(e);
 				}
@@ -2375,7 +4049,8 @@ public class Matchers {
 
 			/**
 			 * Matches when a request path is equal to a given character sequence, case-sensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#contentEquals(java.lang.CharSequence)
 			 */
@@ -2390,13 +4065,44 @@ public class Matchers {
 
 			/**
 			 * Matches when a request path is equal to a given character sequence, case-sensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#contentEquals(java.lang.CharSequence)
+			 */
+			public static Matcher equals(final CharSequence target, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return path.toString().contentEquals(target);
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request path is equal to a given character sequence, case-sensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#contentEquals(java.lang.CharSequence)
 			 */
 			public static Matcher equals(CharSequence target, Rule ... rules) {
 				if(rules.length == 0) return equals(target);
 				return equals(target, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request path is equal to a given character sequence, case-sensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#contentEquals(java.lang.CharSequence)
+			 */
+			public static Matcher equals(CharSequence target, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return equals(target, rules);
+				return equals(target, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -2415,7 +4121,9 @@ public class Matchers {
 
 			/**
 			 * Matches when a request path is equal to a given string, case-insensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
 			 *
 			 * @see  String#equalsIgnoreCase(java.lang.String)
 			 */
@@ -2430,13 +4138,44 @@ public class Matchers {
 
 			/**
 			 * Matches when a request path is equal to a given string, case-insensitive.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#equalsIgnoreCase(java.lang.String)
+			 */
+			public static Matcher equalsIgnoreCase(final String target, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return path.toString().equalsIgnoreCase(target);
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request path is equal to a given string, case-insensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  String#equalsIgnoreCase(java.lang.String)
 			 */
 			public static Matcher equalsIgnoreCase(String target, Rule ... rules) {
 				if(rules.length == 0) return equalsIgnoreCase(target);
 				return equalsIgnoreCase(target, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request path is equal to a given string, case-insensitive.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  String#equalsIgnoreCase(java.lang.String)
+			 */
+			public static Matcher equalsIgnoreCase(String target, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return equalsIgnoreCase(target, rules);
+				return equalsIgnoreCase(target, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -2456,7 +4195,8 @@ public class Matchers {
 
 			/**
 			 * Matches when a request path matches a given regular expression.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  Pattern#compile(java.lang.String)
 			 * @see  Pattern#compile(java.lang.String, int)
@@ -2472,7 +4212,26 @@ public class Matchers {
 
 			/**
 			 * Matches when a request path matches a given regular expression.
-			 * Invokes the provided rules only when matched.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  Pattern#compile(java.lang.String)
+			 * @see  Pattern#compile(java.lang.String, int)
+			 */
+			public static Matcher matches(final Pattern pattern, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return pattern.matcher(path.toString()).matches();
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request path matches a given regular expression.
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  Pattern#compile(java.lang.String)
 			 * @see  Pattern#compile(java.lang.String, int)
@@ -2480,6 +4239,20 @@ public class Matchers {
 			public static Matcher matches(Pattern pattern, Rule ... rules) {
 				if(rules.length == 0) return matches(pattern);
 				return matches(pattern, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request path matches a given regular expression.
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  Pattern#compile(java.lang.String)
+			 * @see  Pattern#compile(java.lang.String, int)
+			 */
+			public static Matcher matches(Pattern pattern, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return matches(pattern, rules);
+				return matches(pattern, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 
 			/**
@@ -2505,11 +4278,12 @@ public class Matchers {
 
 			/**
 			 * Matches when a request path matches a given {@link WildcardPatternMatcher}.
-			 * Invokes the provided rules only when matched.
 			 * <p>
 			 * {@link WildcardPatternMatcher} can significantly outperform {@link Pattern},
 			 * especially in suffix matching.
 			 * </p>
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  WildcardPatternMatcher#compile(java.lang.String)
 			 */
@@ -2524,17 +4298,56 @@ public class Matchers {
 
 			/**
 			 * Matches when a request path matches a given {@link WildcardPatternMatcher}.
-			 * Invokes the provided rules only when matched.
 			 * <p>
 			 * {@link WildcardPatternMatcher} can significantly outperform {@link Pattern},
 			 * especially in suffix matching.
 			 * </p>
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  WildcardPatternMatcher#compile(java.lang.String)
+			 */
+			public static Matcher matches(final WildcardPatternMatcher wildcardPattern, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return new PathMatchMatcherWithRulesAndOtherwise(rules, otherwise) {
+					@Override
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return wildcardPattern.isMatch(path.toString());
+					}
+				};
+			}
+
+			/**
+			 * Matches when a request path matches a given {@link WildcardPatternMatcher}.
+			 * <p>
+			 * {@link WildcardPatternMatcher} can significantly outperform {@link Pattern},
+			 * especially in suffix matching.
+			 * </p>
+			 *
+			 * @param  rules  Invoked only when matched.
 			 *
 			 * @see  WildcardPatternMatcher#compile(java.lang.String)
 			 */
 			public static Matcher matches(WildcardPatternMatcher wildcardPattern, Rule ... rules) {
 				if(rules.length == 0) return matches(wildcardPattern);
 				return matches(wildcardPattern, Arrays.asList(rules));
+			}
+
+			/**
+			 * Matches when a request path matches a given {@link WildcardPatternMatcher}.
+			 * <p>
+			 * {@link WildcardPatternMatcher} can significantly outperform {@link Pattern},
+			 * especially in suffix matching.
+			 * </p>
+			 *
+			 * @param  rules  Invoked only when matched.
+			 * @param  otherwise  Invoked only when not matched.
+			 *
+			 * @see  WildcardPatternMatcher#compile(java.lang.String)
+			 */
+			public static Matcher matches(WildcardPatternMatcher wildcardPattern, Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return matches(wildcardPattern, rules);
+				return matches(wildcardPattern, Arrays.asList(rules), Arrays.asList(otherwise));
 			}
 		}
 
