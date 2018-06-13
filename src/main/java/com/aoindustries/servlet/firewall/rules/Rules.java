@@ -73,7 +73,7 @@ public class Rules {
 
 	// <editor-fold defaultstate="collapsed" desc="Logic">
 	/**
-	 * Matches none.
+	 * Never matches.
 	 *
 	 * @return  Returns {@link Matcher.Result#NO_MATCH} always
 	 *
@@ -89,8 +89,8 @@ public class Rules {
 	};
 
 	/**
-	 * Matches none.  This is useful to temporarily replace another rule with a
-	 * non-matching rule.
+	 * Never matches.  This is useful to replace another rule with a
+	 * non-matching rule, without having to comment-out the set of rules.
 	 *
 	 * @param  rules  The rules are never called.
 	 *
@@ -103,8 +103,8 @@ public class Rules {
 	};
 
 	/**
-	 * Matches none.  This is useful to temporarily replace another rule with a
-	 * non-matching rule.
+	 * Never matches.  This is useful to replace another rule with a
+	 * non-matching rule, without having to comment-out the sets of rules.
 	 *
 	 * @param  rules  The rules are never called.
 	 * @param  otherwise  The rules are never called.
@@ -118,8 +118,8 @@ public class Rules {
 	};
 
 	/**
-	 * Matches none.  This is useful to temporarily replace another rule with a
-	 * non-matching rule.
+	 * Never matches.  This is useful to replace another rule with a
+	 * non-matching rule, without having to comment-out the set of rules.
 	 *
 	 * @param  rules  The rules are never called.
 	 *
@@ -132,8 +132,8 @@ public class Rules {
 	};
 
 	/**
-	 * Matches none.  This is useful to temporarily replace another rule with a
-	 * non-matching rule.
+	 * Never matches.  This is useful to replace another rule with a
+	 * non-matching rule, without having to comment-out the sets of rules.
 	 *
 	 * @param  rules  The rules are never called.
 	 * @param  otherwise  The rules are never called.
@@ -147,7 +147,7 @@ public class Rules {
 	};
 
 	/**
-	 * Matches all.
+	 * Always matches.
 	 *
 	 * @return  Returns {@link Matcher.Result#MATCH} always
 	 */
@@ -160,6 +160,68 @@ public class Rules {
 			return Matcher.Result.MATCH;
 		}
 	};
+
+	/**
+	 * Always matches and calls all rules.
+	 *
+	 * @param  rules  All rules are called, up to any terminating action.
+	 *
+	 * @return  Returns {@link Matcher.Result#TERMINATE} if a terminating action
+	 *          has occurred.  Otherwise returns {@link Matcher.Result#MATCH}.
+	 */
+	public static Matcher all(final Iterable<? extends Rule> rules) {
+		return new Matcher() {
+			@Override
+			public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+				return callRules(context, rules, Matcher.Result.MATCH);
+			}
+		};
+	}
+
+	/**
+	 * Always matches and calls all rules.  This is useful for replacing
+	 * a conditional rule with an always-matching rule, without having to comment-out
+	 * the "otherwise" set of rules.
+	 *
+	 * @param  rules  All rules are called, up to any terminating action.
+	 * @param  otherwise  The rules are never called.
+	 *
+	 * @return  Returns {@link #all(java.lang.Iterable)} always
+	 *
+	 * @see  #all(java.lang.Iterable)
+	 */
+	public static Matcher all(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+		return all(rules);
+	}
+
+	/**
+	 * Always matches and calls all rules.
+	 *
+	 * @param  rules  All rules are called, up to any terminating action.
+	 *
+	 * @return  Returns {@link Matcher.Result#TERMINATE} if a terminating action
+	 *          has occurred.  Otherwise returns {@link Matcher.Result#MATCH}.
+	 */
+	public static Matcher all(Rule ... rules) {
+		if(rules.length == 0) return all;
+		return all(Arrays.asList(rules));
+	}
+
+	/**
+	 * Always matches and calls all rules.  This is useful for replacing
+	 * a conditional rule with an always-matching rule, without having to comment-out
+	 * the "otherwise" set of rules.
+	 *
+	 * @param  rules  All rules are called, up to any terminating action.
+	 * @param  otherwise  The rules are never called.
+	 *
+	 * @return  Returns {@link #all(com.aoindustries.servlet.firewall.api.Rule...)} always
+	 *
+	 * @see  #all(com.aoindustries.servlet.firewall.api.Rule...)
+	 */
+	public static Matcher all(Rule[] rules, Rule ... otherwise) {
+		return all(rules);
+	}
 
 	/**
 	 * Matches when all matchers match.
