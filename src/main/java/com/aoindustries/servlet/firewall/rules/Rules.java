@@ -270,7 +270,7 @@ public class Rules {
 	 * Stops processing {@code rules} (both matchers and actions) when the first matcher does not match.
 	 * Performs any actions while processing rules, up to the point stopped on first non-matching matcher.
 	 *
-	 * @param  otherwise  Performs all {@code otherwise} rules only when a matcher in {@code matches} does not match.
+	 * @param  otherwise  Performs all {@code otherwise} rules only when a matcher in {@code rules} does not match.
 	 *
 	 * @return  {@link Matcher.Result#MATCH} when rules is empty
 	 */
@@ -339,7 +339,7 @@ public class Rules {
 	 * Stops processing {@code rules} (both matchers and actions) when the first matcher does not match.
 	 * Performs any actions while processing rules, up to the point stopped on first non-matching matcher.
 	 *
-	 * @param  otherwise  Performs all {@code otherwise} rules only when a matcher in {@code matches} does not match.
+	 * @param  otherwise  Performs all {@code otherwise} rules only when a matcher in {@code rules} does not match.
 	 *
 	 * @return  {@link Matcher.Result#MATCH} when rules is empty
 	 */
@@ -405,7 +405,7 @@ public class Rules {
 	 * Stops processing matchers once the first match is found.
 	 * Begins processing actions once the first match is found.
 	 *
-	 * @param  otherwise  Performs all {@code otherwise} rules only when no matcher in {@code matches} matches.
+	 * @param  otherwise  Performs all {@code otherwise} rules only when no matcher in {@code rules} matches.
 	 *
 	 * @return  {@link Matcher.Result#NO_MATCH} when rules is empty
 	 *
@@ -477,7 +477,7 @@ public class Rules {
 	 * Stops processing matchers once the first match is found.
 	 * Begins processing actions once the first match is found.
 	 *
-	 * @param  otherwise  Performs all {@code otherwise} rules only when no matcher in {@code matches} matches.
+	 * @param  otherwise  Performs all {@code otherwise} rules only when no matcher in {@code rules} matches.
 	 *
 	 * @return  {@link Matcher.Result#NO_MATCH} when rules is empty
 	 *
@@ -2630,6 +2630,7 @@ public class Rules {
 			 *
 			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
+			// TODO: overloads to provide message
 			public static final Action FORBIDDEN = new SendError(HttpServletResponse.SC_FORBIDDEN);
 
 			/**
