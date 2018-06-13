@@ -77,8 +77,8 @@ public class Rules {
 	 *
 	 * @return  {@link Matcher.Result#NO_MATCH} always
 	 *
-	 * @see  #any(java.lang.Iterable)
-	 * @see  #any(com.aoindustries.servlet.firewall.rules.Rule...)
+	 * @see  #or(java.lang.Iterable)
+	 * @see  #or(com.aoindustries.servlet.firewall.rules.Rule[])
 	 */
 	// TODO: Rename NO_MATCH?
 	public static final Matcher none = new Matcher() {
@@ -95,6 +95,7 @@ public class Rules {
 	 */
 	// TODO: Rename MATCH?
 	// TODO: Java 1.8+ for all ao-servlet-firewall, for lots of Lambda reductions here?
+	//       This would make semanticcms 2.0 be java 1.8+, and pragmatickm, ...
 	public static final Matcher all = new Matcher() {
 		@Override
 		public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
@@ -109,8 +110,7 @@ public class Rules {
 	 *
 	 * @return  {@link Matcher.Result#MATCH} when rules is empty
 	 */
-	// TODO: Rename "and"?
-	public static Matcher all(final Iterable<? extends Rule> rules) {
+	public static Matcher and(final Iterable<? extends Rule> rules) {
 		return new Matcher() {
 			@Override
 			public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
@@ -154,7 +154,7 @@ public class Rules {
 	 *
 	 * @return  {@link Matcher.Result#MATCH} when rules is empty
 	 */
-	public static Matcher all(final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+	public static Matcher and(final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
 		return new Matcher() {
 			@Override
 			public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
@@ -209,9 +209,9 @@ public class Rules {
 	// TODO: Is "all" the best name for this?  Maybe "and" / "or" instead of "all" / "any"?
 	//       This is because it might be expected that all rules will be invoked, not as a matcher.
 	//       Then "all" could be created that simply calls all rules, useful inside "and" / "or" to not terminate?
-	public static Matcher all(Rule ... rules) {
+	public static Matcher and(Rule ... rules) {
 		if(rules.length == 0) return all;
-		return all(Arrays.asList(rules));
+		return and(Arrays.asList(rules));
 	}
 
 	/**
@@ -223,9 +223,9 @@ public class Rules {
 	 *
 	 * @return  {@link Matcher.Result#MATCH} when rules is empty
 	 */
-	public static Matcher all(Rule[] rules, Rule ... otherwise) {
-		if(otherwise.length == 0) return all(rules);
-		return all(Arrays.asList(rules), Arrays.asList(otherwise));
+	public static Matcher and(Rule[] rules, Rule ... otherwise) {
+		if(otherwise.length == 0) return and(rules);
+		return and(Arrays.asList(rules), Arrays.asList(otherwise));
 	}
 
 	/**
@@ -237,7 +237,7 @@ public class Rules {
 	 *
 	 * @see  #none
 	 */
-	public static Matcher any(final Iterable<? extends Rule> rules) {
+	public static Matcher or(final Iterable<? extends Rule> rules) {
 		return new Matcher() {
 			@Override
 			public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
@@ -291,7 +291,7 @@ public class Rules {
 	 *
 	 * @see  #none
 	 */
-	public static Matcher any(final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+	public static Matcher or(final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
 		return new Matcher() {
 			@Override
 			public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
@@ -341,14 +341,14 @@ public class Rules {
 	/**
 	 * @see  #none
 	 */
-	public static Matcher any(Rule ... rules) {
+	public static Matcher or(Rule ... rules) {
 		if(rules.length == 0) return none;
-		return any(Arrays.asList(rules));
+		return or(Arrays.asList(rules));
 	}
 
-	public static Matcher any(Rule[] rules, Rule ... otherwise) {
-		if(otherwise.length == 0) return any(rules);
-		return any(Arrays.asList(rules), Arrays.asList(otherwise));
+	public static Matcher or(Rule[] rules, Rule ... otherwise) {
+		if(otherwise.length == 0) return or(rules);
+		return or(Arrays.asList(rules), Arrays.asList(otherwise));
 	}
 
 	/**
