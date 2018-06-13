@@ -1807,6 +1807,7 @@ public class Rules {
 			/**
 			 * Matches any of a given set of {@link HttpServletRequest#getMethod()}.
 			 */
+			// TODO: Allow single-string for methods and parse it splitting on comma/space?
 			public static Matcher in(String ... methods) {
 				if(methods.length == 0) return none;
 				if(methods.length == 1) return is(methods[0]);
@@ -1892,6 +1893,7 @@ public class Rules {
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
+			// TODO: Allow single-string for methods and parse it splitting on comma/space?
 			public static Matcher in(String[] methods, Iterable<? extends Rule> rules) {
 				if(methods.length == 0) return none;
 				if(methods.length == 1) return is(methods[0], rules);
@@ -1904,6 +1906,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
+			// TODO: Allow single-string for methods and parse it splitting on comma/space?
 			public static Matcher in(String[] methods, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
 				if(methods.length == 0) return none;
 				if(methods.length == 1) return is(methods[0], rules, otherwise);
@@ -1957,6 +1960,7 @@ public class Rules {
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
+			// TODO: Allow single-string for methods and parse it splitting on comma/space?
 			public static Matcher in(String[] methods, Rule ... rules) {
 				if(methods.length == 0) return none;
 				if(methods.length == 1) return is(methods[0], rules);
@@ -1970,6 +1974,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
+			// TODO: Allow single-string for methods and parse it splitting on comma/space?
 			public static Matcher in(String[] methods, Rule[] rules, Rule ... otherwise) {
 				if(otherwise.length == 0) return in(methods, rules);
 				return in(methods, Arrays.asList(rules), Arrays.asList(otherwise));
