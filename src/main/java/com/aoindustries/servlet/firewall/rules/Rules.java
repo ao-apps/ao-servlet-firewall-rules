@@ -459,6 +459,12 @@ public class Rules {
 	}
 
 	/**
+	 * Matches when any matchers match.
+	 * Stops processing matchers once the first match is found.
+	 * Begins processing actions once the first match is found.
+	 *
+	 * @return  {@link Matcher.Result#NO_MATCH} when rules is empty
+	 *
 	 * @see  #none
 	 */
 	public static Matcher or(Rule ... rules) {
@@ -466,6 +472,17 @@ public class Rules {
 		return or(Arrays.asList(rules));
 	}
 
+	/**
+	 * Matches when any matchers match.
+	 * Stops processing matchers once the first match is found.
+	 * Begins processing actions once the first match is found.
+	 *
+	 * @param  otherwise  Performs all {@code otherwise} rules only when no matcher in {@code matches} matches.
+	 *
+	 * @return  {@link Matcher.Result#NO_MATCH} when rules is empty
+	 *
+	 * @see  #none
+	 */
 	public static Matcher or(Rule[] rules, Rule ... otherwise) {
 		if(otherwise.length == 0) return or(rules);
 		return or(Arrays.asList(rules), Arrays.asList(otherwise));
