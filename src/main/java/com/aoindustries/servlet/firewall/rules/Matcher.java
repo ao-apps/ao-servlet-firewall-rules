@@ -23,10 +23,8 @@
 package com.aoindustries.servlet.firewall.rules;
 
 import java.io.IOException;
-import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 /**
  * Matches {@link HttpServletRequest servlet requests}.
@@ -50,15 +48,39 @@ import javax.servlet.http.HttpServletResponse;
 // TODO: Java 1.8: @Functional
 public interface Matcher extends Rule {
 
+	enum Result {
+		/**
+		 * Indicates no match.
+		 */
+		NO_MATCH,
+
+		/**
+		 * Indicates matched.
+		 */
+		MATCH,
+
+		/**
+		 * Indicates that a terminal action has been performed.  Rule processing must stop.
+		 * Valid from either {@link Matcher} or {@link Action}, however it must originate only from
+		 * an {@link Action} and may be propagated up the stack through {@link Matcher}.
+		 * We are favoring this propagation of return over exceptions.
+		 *
+		 * @see  Action.Result#TERMINATE
+		 */
+		TERMINATE
+	}
+
 	/**
 	 * Checks if the given request is matched.
 	 * This must not have any side-effects on the context, request, or response.
 	 *
+	 * @param context  The current firewall context
+	 *
+	 * @param request  The request being matched
+	 *
 	 * @return  Returns {@link Result#TERMINATE} propagated from when a nested terminal action is performed,
 	 *          {@link Result#MATCH} when the rule matches but no nested terminal action is performed (non-terminal might have been performed),
 	 *          or {@link Result#NO_MATCH} when the rule is not matched (nested non-terminal actions might still have been performed, depending on matcher implementation).
-	 *          {@link Result#CONTINUE} is not a valid return from a matcher.
 	 */
-	@Override
-	Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException;
+	Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException;
 }

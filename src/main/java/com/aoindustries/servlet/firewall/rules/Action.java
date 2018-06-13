@@ -44,14 +44,36 @@ import javax.servlet.http.HttpServletResponse;
 // TODO: Java 1.8: @Functional
 public interface Action extends Rule {
 
+	enum Result {
+		/**
+		 * Indicates an action has been performed, but it is non-terminal and rule processing must continue.
+		 */
+		CONTINUE,
+
+		/**
+		 * Indicates that a terminal action has been performed.  Rule processing must stop.
+		 * Valid from either {@link Matcher} or {@link Action}, however it must originate only from
+		 * an {@link Action} and may be propagated up the stack through {@link Matcher}.
+		 * We are favoring this propagation of return over exceptions.
+		 *
+		 * @see  Matcher.Result#TERMINATE
+		 */
+		TERMINATE
+	}
+
 	/**
 	 * Performs the desired action.
 	 * This may have side-effects on the context, request, or response.
+	 *
+	 * @param request  The request being matched
+	 *
+	 * @param response  The current response
+	 *
+	 * @param chain  The current filter chain
 	 *
 	 * @return  Returns {@link Result#TERMINATE} for a terminating action that has handled the request/response
 	 *          or {@link Result#CONTINUE} for a non-terminating action.
 	 *          {@link Result#MATCH} and {@link Result#NO_MATCH} are not valid returns from an action.
 	 */
-	@Override
-	Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException;
+	Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException;
 }

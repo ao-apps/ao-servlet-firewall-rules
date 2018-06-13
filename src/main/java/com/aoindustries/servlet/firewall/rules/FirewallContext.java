@@ -22,21 +22,19 @@
  */
 package com.aoindustries.servlet.firewall.rules;
 
+import java.io.IOException;
+import javax.servlet.ServletException;
+
 /**
- * The parent interface of both {@link Matcher} and {@link Action}.  No other
- * sub-interfaces are expected, and no direct implementations of this interface
- * are expected.
- * <p>
- * Please note that a rule can be both a {@link Matcher} and a {@link Action}.
- * When it is both, its {@link Matcher} aspect is handled before its {@link Action}.
- * At this time none of the stock rules are implemented in this fashion.  This
- * type of pattern begins to resemble "routes", which are beyond the scope of
- * "firewall" and already exist in too many forms within the Java web application
- * development world.
- * </p>
+ * Invocation of {@link Rule rules} must be done through the firewall context.
+ * This is done to support firewall hooks, such as TRACE.
  */
-public interface Rule { // Expected marker interface
+public interface FirewallContext {
 
-	// There are currently no common methods between matcher and action.
+	Matcher.Result call(Matcher matcher) throws IOException, ServletException;
 
+	Action.Result call(Action action) throws IOException, ServletException;
+
+	// TODO: A way to wrap request/response while calling a callable, useful for noSession but while ensuring
+	//       original request/response left in-tact.
 }

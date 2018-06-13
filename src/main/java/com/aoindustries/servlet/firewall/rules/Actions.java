@@ -22,7 +22,7 @@
  */
 package com.aoindustries.servlet.firewall.rules;
 
-import com.aoindustries.servlet.firewall.rules.Rule.Result;
+import com.aoindustries.servlet.firewall.rules.Action.Result;
 import java.io.IOException;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletContext;
@@ -46,7 +46,7 @@ public class Actions {
 	 */
 	public static final Action CONTINUE = new Action() {
 		@Override
-		public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+		public Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
 			return Result.CONTINUE;
 		}
 	};
@@ -58,7 +58,7 @@ public class Actions {
 	 */
 	public static final Action TERMINATE = new Action() {
 		@Override
-		public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+		public Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
 			return Result.TERMINATE;
 		}
 	};
@@ -82,7 +82,7 @@ public class Actions {
 		 */
 		public static final Action doFilter = new Action() {
 			@Override
-			public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
+			public Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
 				chain.doFilter(request, response);
 				return Result.TERMINATE;
 			}
@@ -111,7 +111,7 @@ public class Actions {
 		 */
 		public static final Action log = new Action() {
 			@Override
-			public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+			public Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
 				// TODO: Could log more
 				// TODO: PathPrefix, if present.  Or a way for PathPrefix to register loggers on the FirewallContext
 				// TODO: Also TRACE/stack/integration for logger on FirewallContext?
@@ -128,7 +128,7 @@ public class Actions {
 		public static Action log(final String message) {
 			return new Action() {
 				@Override
-				public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+				public Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
 					// TODO: Could log more or less
 					request.getServletContext().log(message);
 					return Result.CONTINUE;
@@ -168,7 +168,7 @@ public class Actions {
 		 */
 		public static final Action logout = new Action() {
 			@Override
-			public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException {
+			public Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException {
 				request.logout();
 				return Result.CONTINUE;
 			}
@@ -230,7 +230,7 @@ public class Actions {
 					this.sc = sc;
 				}
 				@Override
-				public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException {
+				public Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException {
 					response.sendError(sc);
 					return Result.TERMINATE;
 				}
@@ -300,7 +300,7 @@ public class Actions {
 			public static final Action sendError(final int sc, final String message) {
 				return new Action() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException {
+					public Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException {
 						response.sendError(sc, message);
 						return Result.TERMINATE;
 					}

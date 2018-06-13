@@ -22,8 +22,9 @@
  */
 package com.aoindustries.servlet.firewall.rules;
 
-import com.aoindustries.net.pathspace.PathSpace;
-import com.aoindustries.servlet.firewall.rules.Rule.Result;
+import com.aoindustries.net.Path;
+import com.aoindustries.net.pathspace.PathSpace.PathMatch;
+import com.aoindustries.servlet.firewall.rules.Matcher.Result;
 import com.aoindustries.servlet.http.ServletUtil;
 import com.aoindustries.util.AoCollections;
 import com.aoindustries.util.WildcardPatternMatcher;
@@ -33,12 +34,11 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.regex.Pattern;
-import javax.servlet.FilterChain;
+import javax.servlet.DispatcherType;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 /**
  * A set of simple {@link Matcher} implementations.
@@ -77,7 +77,7 @@ public class Matchers {
 	 */
 	public static final Matcher none = new Matcher() {
 		@Override
-		public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+		public Result perform(FirewallContext context, HttpServletRequest request) {
 			return Result.NO_MATCH;
 		}
 	};
@@ -89,7 +89,7 @@ public class Matchers {
 	 */
 	public static final Matcher all = new Matcher() {
 		@Override
-		public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+		public Result perform(FirewallContext context, HttpServletRequest request) {
 			return Result.MATCH;
 		}
 	};
@@ -104,23 +104,33 @@ public class Matchers {
 	public static Matcher all(final Iterable<? extends Rule> rules) {
 		return new Matcher() {
 			@Override
-			public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
+			public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 				for(Rule rule : rules) {
-					Result result = rule.perform(request, response, chain);
-					switch(result) {
-						case TERMINATE :
-							return Result.TERMINATE;
-						case CONTINUE :
-							assert rule instanceof Action;
-							break;
-						case NO_MATCH :
-							assert rule instanceof Matcher;
-							return Result.NO_MATCH;
-						case MATCH :
-							assert rule instanceof Matcher;
-							break;
-						default :
-							throw new AssertionError();
+					if(rule instanceof Matcher) {
+						Result result = context.call((Matcher)rule);
+						switch(result) {
+							case TERMINATE :
+								return Result.TERMINATE;
+							case NO_MATCH :
+								return Result.NO_MATCH;
+							case MATCH :
+								break;
+							default :
+								throw new AssertionError();
+						}
+					}
+					if(rule instanceof Action) {
+						// TODO: Should we allow a rule to be both a matcher and an action?
+						//       This could be useful for implementing routes, but that is beyond the scope of "firewall".
+						Action.Result result = context.call((Action)rule);
+						switch(result) {
+							case TERMINATE :
+								return Result.TERMINATE;
+							case CONTINUE :
+								break;
+							default :
+								throw new AssertionError();
+						}
 					}
 				}
 				return Result.MATCH;
@@ -145,12 +155,12 @@ public class Matchers {
 	public static Matcher any(final Iterable<? extends Rule> rules) {
 		return new Matcher() {
 			@Override
-			public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
+			public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 				boolean matched = false;
 				for(Rule rule : rules) {
 					if(rule instanceof Matcher) {
 						if(!matched) {
-							Result result = rule.perform(request, response, chain);
+							Result result = context.call((Matcher)rule);
 							switch(result) {
 								case TERMINATE :
 									return Result.TERMINATE;
@@ -161,13 +171,13 @@ public class Matchers {
 									// Continue lookning for first match
 									break;
 								default :
-									throw new AssertionError("Invalid result from Matcher.perform: " + result);
+									throw new AssertionError();
 							}
 						}
-					} else {
-						assert rule instanceof Action;
+					}
+					if(rule instanceof Action) {
 						if(matched) {
-							Result result = rule.perform(request, response, chain);
+							Action.Result result = context.call((Action)rule);
 							switch(result) {
 								case TERMINATE :
 									return Result.TERMINATE;
@@ -175,7 +185,7 @@ public class Matchers {
 									// Continue with any additional actions
 									break;
 								default :
-									throw new AssertionError("Invalid result from Action.perform: " + result);
+									throw new AssertionError();
 							}
 						}
 					}
@@ -202,14 +212,44 @@ public class Matchers {
 	public static Matcher not(final Matcher matcher) {
 		return new Matcher() {
 			@Override
-			public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
-				Result result = matcher.perform(request, response, chain);
-				if(result == Result.TERMINATE) return Result.TERMINATE;
-				if(result == Result.MATCH) return Result.NO_MATCH;
-				if(result == Result.NO_MATCH) return Result.MATCH;
-				throw new AssertionError("Invalid result from Matcher.perform: " + result);
+			public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+				Result result = context.call(matcher);
+				switch(result) {
+					case TERMINATE : return Result.TERMINATE;
+					case MATCH     : return Result.NO_MATCH;
+					case NO_MATCH  : return Result.MATCH;
+					default        : throw new AssertionError();
+				}
 			}
 		};
+	}
+
+	/**
+	 * Shared implementation for when matchers match the request and are dispatching to all their nested rules.
+	 */
+	private static Result callRules(FirewallContext context, Iterable<? extends Rule> rules) throws IOException, ServletException {
+		for(Rule rule : rules) {
+			if(rule instanceof Matcher) {
+				Result result = context.call((Matcher)rule);
+				if(result == Result.TERMINATE) return Result.TERMINATE;
+			}
+			if(rule instanceof Action) {
+				Action.Result result = context.call((Action)rule);
+				if(result == Action.Result.TERMINATE) return Result.TERMINATE;
+			}
+		}
+		return Result.MATCH;
+	}
+
+	/**
+	 * Shared implementation for when matchers match the request and are dispatching to all their nested rules.
+	 */
+	private static Result doMatches(boolean matches, FirewallContext context, Iterable<? extends Rule> rules) throws IOException, ServletException {
+		if(matches) {
+			return callRules(context, rules);
+		} else {
+			return Result.NO_MATCH;
+		}
 	}
 	// </editor-fold>
 
@@ -218,13 +258,15 @@ public class Matchers {
 
 	// TODO: RequestDispatcher (and all associated constants)?
 
-	// <editor-fold defaultstate="collapsed" desc="Context">
+	// <editor-fold defaultstate="collapsed" desc="servletContext">
 	/**
 	 * @see  ServletContext
+	 *
+	 * // TODO: Name just "context", but what if we have FirewallContext?
 	 */
-	public static class Context {
+	public static class servletContext {
 
-		private Context() {}
+		private servletContext() {}
 
 		// TODO: orderedLibs, tempDir (from constants?)
 
@@ -263,14 +305,14 @@ public class Matchers {
 	// TODO: Filter name and init parameters from ao-servlet-firewall-filter?
 	// TODO: FilterRegistration?
 
-	// <editor-fold defaultstate="collapsed" desc="Request">
+	// <editor-fold defaultstate="collapsed" desc="request">
 	/**
 	 * @see  ServletRequest
 	 * @see  HttpServletRequest
 	 */
-	public static class Request {
+	public static class request {
 
-		private Request() {}
+		private request() {}
 
 		// <editor-fold defaultstate="collapsed" desc="ServletRequest">
 
@@ -284,21 +326,21 @@ public class Matchers {
 
 		// TODO: getContentType?
 
-		// <editor-fold defaultstate="collapsed" desc="DispatcherType">
+		// <editor-fold defaultstate="collapsed" desc="dispatcherType">
 		/**
 		 * @see  ServletRequest#getDispatcherType()
 		 */
-		public static class DispatcherType {
+		public static class dispatcherType {
 
-			private DispatcherType() {}
+			private dispatcherType() {}
 
 			private static class Is implements Matcher {
-				private final javax.servlet.DispatcherType dispatcherType;
-				private Is(javax.servlet.DispatcherType dispatcherType) {
+				private final DispatcherType dispatcherType;
+				private Is(DispatcherType dispatcherType) {
 					this.dispatcherType = dispatcherType;
 				}
 				@Override
-				public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+				public Result perform(FirewallContext context, HttpServletRequest request) {
 					return request.getDispatcherType() == dispatcherType
 						? Result.MATCH
 						: Result.NO_MATCH;
@@ -306,9 +348,9 @@ public class Matchers {
 			}
 
 			/**
-			 * Matches one given {@link javax.servlet.DispatcherType}.
+			 * Matches one given {@link DispatcherType}.
 			 */
-			public static Matcher is(javax.servlet.DispatcherType dispatcherType) {
+			public static Matcher is(DispatcherType dispatcherType) {
 				switch(dispatcherType) {
 					case FORWARD : return isForward;
 					case INCLUDE : return isInclude;
@@ -320,44 +362,36 @@ public class Matchers {
 			}
 
 			/**
-			 * Matches one given {@link javax.servlet.DispatcherType}.
+			 * Matches one given {@link DispatcherType}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher is(final javax.servlet.DispatcherType dispatcherType, final Iterable<? extends Rule> rules) {
+			public static Matcher is(final DispatcherType dispatcherType, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
-						if(request.getDispatcherType() == dispatcherType) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+						return doMatches(request.getDispatcherType() == dispatcherType, context, rules);
 					}
 				};
 			}
 
 			/**
-			 * Matches one given {@link javax.servlet.DispatcherType}.
+			 * Matches one given {@link DispatcherType}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher is(javax.servlet.DispatcherType dispatcherType, Rule ... rules) {
+			public static Matcher is(DispatcherType dispatcherType, Rule ... rules) {
 				if(rules.length == 0) return is(dispatcherType);
 				return is(dispatcherType, Arrays.asList(rules));
 			}
 
 			/**
-			 * Matches any of a given iterable of {@link javax.servlet.DispatcherType}.
+			 * Matches any of a given iterable of {@link DispatcherType}.
 			 */
-			public static Matcher in(final Iterable<? extends javax.servlet.DispatcherType> dispatcherTypes) {
+			public static Matcher in(final Iterable<? extends DispatcherType> dispatcherTypes) {
 				return new Matcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
-						javax.servlet.DispatcherType type = request.getDispatcherType();
-						for(javax.servlet.DispatcherType dispatcherType : dispatcherTypes) {
+					public Result perform(FirewallContext context, HttpServletRequest request) {
+						DispatcherType type = request.getDispatcherType();
+						for(DispatcherType dispatcherType : dispatcherTypes) {
 							if(dispatcherType == type) return Result.MATCH;
 						}
 						return Result.NO_MATCH;
@@ -366,12 +400,12 @@ public class Matchers {
 			}
 
 			/**
-			 * Matches any of a given set of {@link javax.servlet.DispatcherType}.
+			 * Matches any of a given set of {@link DispatcherType}.
 			 */
-			public static Matcher in(final EnumSet<? extends javax.servlet.DispatcherType> dispatcherTypes) {
+			public static Matcher in(final EnumSet<? extends DispatcherType> dispatcherTypes) {
 				return new Matcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+					public Result perform(FirewallContext context, HttpServletRequest request) {
 						return dispatcherTypes.contains(request.getDispatcherType())
 							? Result.MATCH
 							: Result.NO_MATCH;
@@ -380,91 +414,81 @@ public class Matchers {
 			}
 
 			/**
-			 * Matches any of a given set of {@link javax.servlet.DispatcherType}.
+			 * Matches any of a given set of {@link DispatcherType}.
 			 */
-			public static Matcher in(javax.servlet.DispatcherType ... dispatcherTypes) {
+			public static Matcher in(DispatcherType ... dispatcherTypes) {
 				if(dispatcherTypes.length == 0) return none;
 				if(dispatcherTypes.length == 1) return is(dispatcherTypes[0]);
 				return in(EnumSet.of(dispatcherTypes[0], dispatcherTypes));
 			}
 
 			/**
-			 * Matches any of a given iterable of {@link javax.servlet.DispatcherType}.
+			 * Matches any of a given iterable of {@link DispatcherType}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher in(final Iterable<? extends javax.servlet.DispatcherType> dispatcherTypes, final Iterable<? extends Rule> rules) {
+			public static Matcher in(final Iterable<? extends DispatcherType> dispatcherTypes, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
-						javax.servlet.DispatcherType type = request.getDispatcherType();
-						for(javax.servlet.DispatcherType dispatcherType : dispatcherTypes) {
+					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+						boolean matches = false;
+						DispatcherType type = request.getDispatcherType();
+						for(DispatcherType dispatcherType : dispatcherTypes) {
 							if(dispatcherType == type) {
-								for(Rule rule : rules) {
-									Result result = rule.perform(request, response, chain);
-									if(result == Result.TERMINATE) return Result.TERMINATE;
-								}
-								return Result.MATCH;
+								matches = true;
+								break;
 							}
 						}
-						return Result.NO_MATCH;
+						return doMatches(matches, context, rules);
 					}
 				};
 			}
 
 			/**
-			 * Matches any of a given set of {@link javax.servlet.DispatcherType}.
+			 * Matches any of a given set of {@link DispatcherType}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher in(final EnumSet<? extends javax.servlet.DispatcherType> dispatcherTypes, final Iterable<? extends Rule> rules) {
+			public static Matcher in(final EnumSet<? extends DispatcherType> dispatcherTypes, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
-						if(dispatcherTypes.contains(request.getDispatcherType())) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+						return doMatches(dispatcherTypes.contains(request.getDispatcherType()), context, rules);
 					}
 				};
 			}
 
 			/**
-			 * Matches any of a given set of {@link javax.servlet.DispatcherType}.
+			 * Matches any of a given set of {@link DispatcherType}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher in(javax.servlet.DispatcherType[] dispatcherTypes, final Iterable<? extends Rule> rules) {
+			public static Matcher in(DispatcherType[] dispatcherTypes, Iterable<? extends Rule> rules) {
 				if(dispatcherTypes.length == 0) return none;
 				if(dispatcherTypes.length == 1) return is(dispatcherTypes[0], rules);
 				return in(EnumSet.of(dispatcherTypes[0], dispatcherTypes), rules);
 			}
 
 			/**
-			 * Matches any of a given iterable of {@link javax.servlet.DispatcherType}.
+			 * Matches any of a given iterable of {@link DispatcherType}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher in(Iterable<? extends javax.servlet.DispatcherType> dispatcherTypes, Rule ... rules) {
+			public static Matcher in(Iterable<? extends DispatcherType> dispatcherTypes, Rule ... rules) {
 				if(rules.length == 0) return in(dispatcherTypes);
 				return in(dispatcherTypes, Arrays.asList(rules));
 			}
 
 			/**
-			 * Matches any of a given set of {@link javax.servlet.DispatcherType}.
+			 * Matches any of a given set of {@link DispatcherType}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher in(EnumSet<? extends javax.servlet.DispatcherType> dispatcherTypes, Rule ... rules) {
+			public static Matcher in(EnumSet<? extends DispatcherType> dispatcherTypes, Rule ... rules) {
 				if(rules.length == 0) return in(dispatcherTypes);
 				return in(dispatcherTypes, Arrays.asList(rules));
 			}
 
 			/**
-			 * Matches any of a given set of {@link javax.servlet.DispatcherType}.
+			 * Matches any of a given set of {@link DispatcherType}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher in(javax.servlet.DispatcherType[] dispatcherTypes, Rule ... rules) {
+			public static Matcher in(DispatcherType[] dispatcherTypes, Rule ... rules) {
 				if(dispatcherTypes.length == 0) return none;
 				if(dispatcherTypes.length == 1) return is(dispatcherTypes[0], rules);
 				if(rules.length == 0) return in(dispatcherTypes);
@@ -472,108 +496,108 @@ public class Matchers {
 			}
 
 			/**
-			 * Matches {@link javax.servlet.DispatcherType#FORWARD}.
+			 * Matches {@link DispatcherType#FORWARD}.
 			 */
-			public static final Matcher isForward = new Is(javax.servlet.DispatcherType.FORWARD);
+			public static final Matcher isForward = new Is(DispatcherType.FORWARD);
 
 			/**
-			 * Matches {@link javax.servlet.DispatcherType#FORWARD}.
+			 * Matches {@link DispatcherType#FORWARD}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher isForward(final Iterable<? extends Rule> rules) {
-				return is(javax.servlet.DispatcherType.FORWARD, rules);
+			public static Matcher isForward(Iterable<? extends Rule> rules) {
+				return is(DispatcherType.FORWARD, rules);
 			}
 
 			/**
-			 * Matches {@link javax.servlet.DispatcherType#FORWARD}.
+			 * Matches {@link DispatcherType#FORWARD}.
 			 * Invokes the provided rules only when matched.
 			 */
 			public static Matcher isForward(Rule ... rules) {
-				return is(javax.servlet.DispatcherType.FORWARD, rules);
+				return is(DispatcherType.FORWARD, rules);
 			}
 
 			/**
-			 * Matches {@link javax.servlet.DispatcherType#INCLUDE}.
+			 * Matches {@link DispatcherType#INCLUDE}.
 			 */
-			public static final Matcher isInclude = new Is(javax.servlet.DispatcherType.INCLUDE);
+			public static final Matcher isInclude = new Is(DispatcherType.INCLUDE);
 
 			/**
-			 * Matches {@link javax.servlet.DispatcherType#INCLUDE}.
+			 * Matches {@link DispatcherType#INCLUDE}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher isInclude(final Iterable<? extends Rule> rules) {
-				return is(javax.servlet.DispatcherType.INCLUDE, rules);
+			public static Matcher isInclude(Iterable<? extends Rule> rules) {
+				return is(DispatcherType.INCLUDE, rules);
 			}
 
 			/**
-			 * Matches {@link javax.servlet.DispatcherType#INCLUDE}.
+			 * Matches {@link DispatcherType#INCLUDE}.
 			 * Invokes the provided rules only when matched.
 			 */
 			public static Matcher isInclude(Rule ... rules) {
-				return is(javax.servlet.DispatcherType.INCLUDE, rules);
+				return is(DispatcherType.INCLUDE, rules);
 			}
 
 			/**
-			 * Matches {@link javax.servlet.DispatcherType#REQUEST}.
+			 * Matches {@link DispatcherType#REQUEST}.
 			 */
-			public static final Matcher isRequest = new Is(javax.servlet.DispatcherType.REQUEST);
+			public static final Matcher isRequest = new Is(DispatcherType.REQUEST);
 
 			/**
-			 * Matches {@link javax.servlet.DispatcherType#REQUEST}.
+			 * Matches {@link DispatcherType#REQUEST}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher isRequest(final Iterable<? extends Rule> rules) {
-				return is(javax.servlet.DispatcherType.REQUEST, rules);
+			public static Matcher isRequest(Iterable<? extends Rule> rules) {
+				return is(DispatcherType.REQUEST, rules);
 			}
 
 			/**
-			 * Matches {@link javax.servlet.DispatcherType#REQUEST}.
+			 * Matches {@link DispatcherType#REQUEST}.
 			 * Invokes the provided rules only when matched.
 			 */
 			public static Matcher isRequest(Rule ... rules) {
-				return is(javax.servlet.DispatcherType.REQUEST, rules);
+				return is(DispatcherType.REQUEST, rules);
 			}
 
 			/**
-			 * Matches {@link javax.servlet.DispatcherType#ASYNC}.
+			 * Matches {@link DispatcherType#ASYNC}.
 			 */
-			public static final Matcher isAsync = new Is(javax.servlet.DispatcherType.ASYNC);
+			public static final Matcher isAsync = new Is(DispatcherType.ASYNC);
 
 			/**
-			 * Matches {@link javax.servlet.DispatcherType#ASYNC}.
+			 * Matches {@link DispatcherType#ASYNC}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher isAsync(final Iterable<? extends Rule> rules) {
-				return is(javax.servlet.DispatcherType.ASYNC, rules);
+			public static Matcher isAsync(Iterable<? extends Rule> rules) {
+				return is(DispatcherType.ASYNC, rules);
 			}
 
 			/**
-			 * Matches {@link javax.servlet.DispatcherType#ASYNC}.
+			 * Matches {@link DispatcherType#ASYNC}.
 			 * Invokes the provided rules only when matched.
 			 */
 			public static Matcher isAsync(Rule ... rules) {
-				return is(javax.servlet.DispatcherType.ASYNC, rules);
+				return is(DispatcherType.ASYNC, rules);
 			}
 
 			/**
-			 * Matches {@link javax.servlet.DispatcherType#ERROR}.
+			 * Matches {@link DispatcherType#ERROR}.
 			 */
-			public static final Matcher isError = new Is(javax.servlet.DispatcherType.ERROR);
+			public static final Matcher isError = new Is(DispatcherType.ERROR);
 
 			/**
-			 * Matches {@link javax.servlet.DispatcherType#ERROR}.
+			 * Matches {@link DispatcherType#ERROR}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher isError(final Iterable<? extends Rule> rules) {
-				return is(javax.servlet.DispatcherType.ERROR, rules);
+			public static Matcher isError(Iterable<? extends Rule> rules) {
+				return is(DispatcherType.ERROR, rules);
 			}
 
 			/**
-			 * Matches {@link javax.servlet.DispatcherType#ERROR}.
+			 * Matches {@link DispatcherType#ERROR}.
 			 * Invokes the provided rules only when matched.
 			 */
 			public static Matcher isError(Rule ... rules) {
-				return is(javax.servlet.DispatcherType.ERROR, rules);
+				return is(DispatcherType.ERROR, rules);
 			}
 		}
 		// </editor-fold>
@@ -608,9 +632,9 @@ public class Matchers {
 		 *
 		 * @see  HttpServletRequest#getAuthType()
 		 */
-		public static class AuthType {
+		public static class authType {
 
-			private AuthType() {}
+			private authType() {}
 
 			private static class Is implements Matcher {
 				private final String authType;
@@ -618,7 +642,7 @@ public class Matchers {
 					this.authType = authType;
 				}
 				@Override
-				public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+				public Result perform(FirewallContext context, HttpServletRequest request) {
 					String type = request.getAuthType();
 					return type != null && type.equals(authType)
 						? Result.MATCH
@@ -644,17 +668,9 @@ public class Matchers {
 			public static Matcher is(final String authType, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
+					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						String type = request.getAuthType();
-						if(type != null && type.equals(authType)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+						return doMatches(type != null && type.equals(authType), context, rules);
 					}
 				};
 			}
@@ -674,7 +690,7 @@ public class Matchers {
 			public static Matcher in(final Iterable<? extends String> authTypes) {
 				return new Matcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+					public Result perform(FirewallContext context, HttpServletRequest request) {
 						String type = request.getAuthType();
 						if(type != null) {
 							for(String authType : authTypes) {
@@ -692,7 +708,7 @@ public class Matchers {
 			public static Matcher in(final Collection<? extends String> authTypes) {
 				return new Matcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+					public Result perform(FirewallContext context, HttpServletRequest request) {
 						String type = request.getAuthType();
 						return type != null && authTypes.contains(type)
 							? Result.MATCH
@@ -717,20 +733,18 @@ public class Matchers {
 			public static Matcher in(final Iterable<? extends String> authTypes, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
+					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+						boolean matches = false;
 						String type = request.getAuthType();
 						if(type != null) {
 							for(String authType : authTypes) {
 								if(type.equals(authType)) {
-									for(Rule rule : rules) {
-										Result result = rule.perform(request, response, chain);
-										if(result == Result.TERMINATE) return Result.TERMINATE;
-									}
-									return Result.MATCH;
+									matches = true;
+									break;
 								}
 							}
 						}
-						return Result.NO_MATCH;
+						return doMatches(matches, context, rules);
 					}
 				};
 			}
@@ -742,17 +756,9 @@ public class Matchers {
 			public static Matcher in(final Collection<? extends String> authTypes, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
+					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						String type = request.getAuthType();
-						if(type != null && authTypes.contains(type)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+						return doMatches(type != null && authTypes.contains(type), context, rules);
 					}
 				};
 			}
@@ -761,7 +767,7 @@ public class Matchers {
 			 * Matches any of a given set of {@link HttpServletRequest#getAuthType()}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher in(String[] authTypes, final Iterable<? extends Rule> rules) {
+			public static Matcher in(String[] authTypes, Iterable<? extends Rule> rules) {
 				if(authTypes.length == 0) return none;
 				if(authTypes.length == 1) return is(authTypes[0], rules);
 				return in(AoCollections.unmodifiableCopySet(Arrays.asList(authTypes)), rules);
@@ -805,7 +811,7 @@ public class Matchers {
 			 * Matches {@link HttpServletRequest#BASIC_AUTH}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher isBasic(final Iterable<? extends Rule> rules) {
+			public static Matcher isBasic(Iterable<? extends Rule> rules) {
 				return is(HttpServletRequest.BASIC_AUTH, rules);
 			}
 
@@ -826,7 +832,7 @@ public class Matchers {
 			 * Matches {@link HttpServletRequest#FORM_AUTH}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher isForm(final Iterable<? extends Rule> rules) {
+			public static Matcher isForm(Iterable<? extends Rule> rules) {
 				return is(HttpServletRequest.FORM_AUTH, rules);
 			}
 
@@ -847,7 +853,7 @@ public class Matchers {
 			 * Matches {@link HttpServletRequest#CLIENT_CERT_AUTH}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher isClientCert(final Iterable<? extends Rule> rules) {
+			public static Matcher isClientCert(Iterable<? extends Rule> rules) {
 				return is(HttpServletRequest.CLIENT_CERT_AUTH, rules);
 			}
 
@@ -868,7 +874,7 @@ public class Matchers {
 			 * Matches {@link HttpServletRequest#DIGEST_AUTH}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher isDigest(final Iterable<? extends Rule> rules) {
+			public static Matcher isDigest(Iterable<? extends Rule> rules) {
 				return is(HttpServletRequest.DIGEST_AUTH, rules);
 			}
 
@@ -892,9 +898,9 @@ public class Matchers {
 		/**
 		 * @see  HttpServletRequest#getMethod()
 		 */
-		public static class Method {
+		public static class method {
 
-			private Method() {}
+			private method() {}
 
 			private static class Is implements Matcher {
 				private final String method;
@@ -902,7 +908,7 @@ public class Matchers {
 					this.method = method;
 				}
 				@Override
-				public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+				public Result perform(FirewallContext context, HttpServletRequest request) {
 					return request.getMethod().equals(method)
 						? Result.MATCH
 						: Result.NO_MATCH;
@@ -930,16 +936,8 @@ public class Matchers {
 			public static Matcher is(final String method, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
-						if(request.getMethod().equals(method)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+						return doMatches(request.getMethod().equals(method), context, rules);
 					}
 				};
 			}
@@ -959,7 +957,7 @@ public class Matchers {
 			public static Matcher in(final Iterable<? extends String> methods) {
 				return new Matcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+					public Result perform(FirewallContext context, HttpServletRequest request) {
 						String m = request.getMethod();
 						for(String method : methods) {
 							if(m.equals(method)) return Result.MATCH;
@@ -975,7 +973,7 @@ public class Matchers {
 			public static Matcher in(final Collection<? extends String> methods) {
 				return new Matcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+					public Result perform(FirewallContext context, HttpServletRequest request) {
 						return methods.contains(request.getMethod())
 							? Result.MATCH
 							: Result.NO_MATCH;
@@ -999,18 +997,16 @@ public class Matchers {
 			public static Matcher in(final Iterable<? extends String> methods, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
+					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+						boolean matches = false;
 						String m = request.getMethod();
 						for(String method : methods) {
 							if(m.equals(method)) {
-								for(Rule rule : rules) {
-									Result result = rule.perform(request, response, chain);
-									if(result == Result.TERMINATE) return Result.TERMINATE;
-								}
-								return Result.MATCH;
+								matches = true;
+								break;
 							}
 						}
-						return Result.NO_MATCH;
+						return doMatches(matches, context, rules);
 					}
 				};
 			}
@@ -1022,16 +1018,8 @@ public class Matchers {
 			public static Matcher in(final Collection<? extends String> methods, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
-						if(methods.contains(request.getMethod())) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+						return doMatches(methods.contains(request.getMethod()), context, rules);
 					}
 				};
 			}
@@ -1040,7 +1028,7 @@ public class Matchers {
 			 * Matches any of a given set of {@link HttpServletRequest#getMethod()}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher in(String[] methods, final Iterable<? extends Rule> rules) {
+			public static Matcher in(String[] methods, Iterable<? extends Rule> rules) {
 				if(methods.length == 0) return none;
 				if(methods.length == 1) return is(methods[0], rules);
 				return in(AoCollections.unmodifiableCopySet(Arrays.asList(methods)), rules);
@@ -1084,7 +1072,7 @@ public class Matchers {
 			 * Matches {@link ServletUtil#METHOD_DELETE}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher isDelete(final Iterable<? extends Rule> rules) {
+			public static Matcher isDelete(Iterable<? extends Rule> rules) {
 				return is(ServletUtil.METHOD_DELETE, rules);
 			}
 
@@ -1105,7 +1093,7 @@ public class Matchers {
 			 * Matches {@link ServletUtil#METHOD_HEAD}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher isHead(final Iterable<? extends Rule> rules) {
+			public static Matcher isHead(Iterable<? extends Rule> rules) {
 				return is(ServletUtil.METHOD_HEAD, rules);
 			}
 
@@ -1126,7 +1114,7 @@ public class Matchers {
 			 * Matches {@link ServletUtil#METHOD_GET}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher isGet(final Iterable<? extends Rule> rules) {
+			public static Matcher isGet(Iterable<? extends Rule> rules) {
 				return is(ServletUtil.METHOD_GET, rules);
 			}
 
@@ -1147,7 +1135,7 @@ public class Matchers {
 			 * Matches {@link ServletUtil#METHOD_OPTIONS}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher isOptions(final Iterable<? extends Rule> rules) {
+			public static Matcher isOptions(Iterable<? extends Rule> rules) {
 				return is(ServletUtil.METHOD_OPTIONS, rules);
 			}
 
@@ -1168,7 +1156,7 @@ public class Matchers {
 			 * Matches {@link ServletUtil#METHOD_POST}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher isPost(final Iterable<? extends Rule> rules) {
+			public static Matcher isPost(Iterable<? extends Rule> rules) {
 				return is(ServletUtil.METHOD_POST, rules);
 			}
 
@@ -1189,7 +1177,7 @@ public class Matchers {
 			 * Matches {@link ServletUtil#METHOD_PUT}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher isPut(final Iterable<? extends Rule> rules) {
+			public static Matcher isPut(Iterable<? extends Rule> rules) {
 				return is(ServletUtil.METHOD_PUT, rules);
 			}
 
@@ -1210,7 +1198,7 @@ public class Matchers {
 			 * Matches {@link ServletUtil#METHOD_TRACE}.
 			 * Invokes the provided rules only when matched.
 			 */
-			public static Matcher isTrace(final Iterable<? extends Rule> rules) {
+			public static Matcher isTrace(Iterable<? extends Rule> rules) {
 				return is(ServletUtil.METHOD_TRACE, rules);
 			}
 
@@ -1260,66 +1248,114 @@ public class Matchers {
 
 	// TODO: AO-include/forward args?
 
-	// <editor-fold defaultstate="collapsed" desc="PathMatch">
+	// <editor-fold defaultstate="collapsed" desc="pathMatch">
 	/**
 	 * TODO: Move to own package or to path-space or servlet-space package?
 	 *
-	 * @see  PathSpace.PathMatch
+	 * @see  PathMatch
 	 */
-	public static class PathMatch {
+	public static class pathMatch {
+
+		private pathMatch() {}
 
 		/**
 		 * The request key that holds the current PathMatch.
 		 */
-		private static final String PATH_MATCH_REQUEST_KEY = PathMatch.class.getName();
+		private static final String PATH_MATCH_REQUEST_KEY = pathMatch.class.getName();
 
 		/**
-		 * Gets the {@link PathSpace.PathMatch} for the current servlet space.
+		 * Gets the {@link PathMatch} for the current servlet space.
 		 *
-		 * @throws ServletException when no {@link PathSpace.PathMatch} set.
+		 * @throws ServletException when no {@link PathMatch} set.
 		 */
-		private static PathSpace.PathMatch<?> getPathMatch(ServletRequest request) throws ServletException {
-			PathSpace.PathMatch<?> pathMatch = (PathSpace.PathMatch<?>)request.getAttribute(PATH_MATCH_REQUEST_KEY);
+		private static PathMatch<?> getPathMatch(ServletRequest request) throws ServletException {
+			PathMatch<?> pathMatch = (PathMatch<?>)request.getAttribute(PATH_MATCH_REQUEST_KEY);
 			if(pathMatch == null) throw new ServletException("PathMatch not set on request");
 			return pathMatch;
 		}
 
 		private abstract static class PathMatchMatcher implements Matcher {
 			@Override
-			final public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
-				PathSpace.PathMatch<?> pathMatch = getPathMatch(request);
-				return perform(
-					request,
-					response,
-					chain,
-					pathMatch.getPrefix(),
-					pathMatch.getPrefixPath(),
-					pathMatch.getPath()
+			final public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+				PathMatch<?> pathMatch = getPathMatch(request);
+				if(
+					matches(
+						context,
+						request,
+						pathMatch.getPrefix(),
+						pathMatch.getPrefixPath(),
+						pathMatch.getPath()
+					)
+				) {
+					return Result.MATCH;
+				} else {
+					return Result.NO_MATCH;
+				}
+			}
+
+			/**
+			 * @param  prefix  See {@link PathMatch#getPrefix()}
+			 * @param  prefixPath  See {@link PathMatch#getPrefixPath()}
+			 * @param  path  See {@link PathMatch#getPath()}
+			 *
+			 * @see  #perform(com.aoindustries.servlet.firewall.rules.FirewallContext, javax.servlet.http.HttpServletRequest)
+			 */
+			abstract protected boolean matches(
+				FirewallContext context,
+				HttpServletRequest request,
+				com.aoindustries.net.pathspace.Prefix prefix,
+				Path prefixPath,
+				Path path
+			) throws IOException, ServletException;
+		}
+
+		private abstract static class PathMatchMatcherWithRules implements Matcher {
+
+			private final Iterable<? extends Rule> rules;
+
+			private PathMatchMatcherWithRules(Iterable<? extends Rule> rules) {
+				this.rules = rules;
+			}
+
+			//private PathMatchMatcherWithRules(Rule ... rules) {
+			//	this(Arrays.asList(rules));
+			//}
+
+			@Override
+			final public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+				PathMatch<?> pathMatch = getPathMatch(request);
+				return doMatches(
+					matches(
+						context,
+						request,
+						pathMatch.getPrefix(),
+						pathMatch.getPrefixPath(),
+						pathMatch.getPath()
+					),
+					context,
+					rules
 				);
 			}
 
 			/**
-			 * @param  prefix  See {@link PathSpace.PathMatch#getPrefix()}
-			 * @param  prefixPath  See {@link PathSpace.PathMatch#getPrefixPath()}
-			 * @param  path  See {@link PathSpace.PathMatch#getPath()}
+			 * @param  prefix  See {@link PathMatch#getPrefix()}
+			 * @param  prefixPath  See {@link PathMatch#getPrefixPath()}
+			 * @param  path  See {@link PathMatch#getPath()}
 			 *
-			 * @see  #perform(javax.servlet.http.HttpServletRequest, javax.servlet.http.HttpServletResponse, javax.servlet.FilterChain)
+			 * @see  #perform(com.aoindustries.servlet.firewall.rules.FirewallContext, javax.servlet.http.HttpServletRequest)
 			 */
-			abstract protected Result perform(
+			abstract protected boolean matches(
+				FirewallContext context,
 				HttpServletRequest request,
-				HttpServletResponse response,
-				FilterChain chain,
 				com.aoindustries.net.pathspace.Prefix prefix,
-				com.aoindustries.net.Path prefixPath,
-				com.aoindustries.net.Path path
+				Path prefixPath,
+				Path path
 			) throws IOException, ServletException;
 		}
 
-		private PathMatch() {}
-
 		// <editor-fold defaultstate="collapsed" desc="prefix">
 		/**
-		 * @see  PathSpace.PathMatch#getPrefix()
+		 * @see  PathMatch#getPrefix()
 		 */
 		public static class prefix {
 
@@ -1334,10 +1370,8 @@ public class Matchers {
 			public static Matcher startsWith(final String prefix) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix _prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return _prefix.toString().startsWith(prefix)
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix _prefix, Path prefixPath, Path path) {
+						return _prefix.toString().startsWith(prefix);
 					}
 				};
 			}
@@ -1349,19 +1383,11 @@ public class Matchers {
 			 *
 			 * @see  String#startsWith(java.lang.String)
 			 */
-			public static Matcher startsWith(final String prefix, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher startsWith(final String prefix, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix _prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(_prefix.toString().startsWith(prefix)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix _prefix, Path prefixPath, Path path) {
+						return _prefix.toString().startsWith(prefix);
 					}
 				};
 			}
@@ -1387,10 +1413,8 @@ public class Matchers {
 			public static Matcher endsWith(final String suffix) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return prefix.toString().endsWith(suffix)
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefix.toString().endsWith(suffix);
 					}
 				};
 			}
@@ -1402,19 +1426,11 @@ public class Matchers {
 			 *
 			 * @see  String#endsWith(java.lang.String)
 			 */
-			public static Matcher endsWith(final String suffix, final Iterable<? extends Rule> rules) {
+			public static Matcher endsWith(final String suffix, Iterable<? extends Rule> rules) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix _prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(_prefix.toString().endsWith(suffix)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix _prefix, Path prefixPath, Path path) {
+						return _prefix.toString().endsWith(suffix);
 					}
 				};
 			}
@@ -1440,10 +1456,8 @@ public class Matchers {
 			public static Matcher contains(final CharSequence substring) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return prefix.toString().contains(substring)
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefix.toString().contains(substring);
 					}
 				};
 			}
@@ -1455,19 +1469,11 @@ public class Matchers {
 			 *
 			 * @see  String#contains(java.lang.CharSequence)
 			 */
-			public static Matcher contains(final CharSequence substring, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher contains(final CharSequence substring, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(prefix.toString().contains(substring)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefix.toString().contains(substring);
 					}
 				};
 			}
@@ -1492,10 +1498,8 @@ public class Matchers {
 			public static Matcher equals(final com.aoindustries.net.pathspace.Prefix target) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return prefix.equals(target)
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefix.equals(target);
 					}
 				};
 			}
@@ -1506,19 +1510,11 @@ public class Matchers {
 			 *
 			 * @see  com.aoindustries.net.pathspace.Prefix#equals(java.lang.Object)
 			 */
-			public static Matcher equals(final com.aoindustries.net.pathspace.Prefix target, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher equals(final com.aoindustries.net.pathspace.Prefix target, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(prefix.equals(target)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefix.equals(target);
 					}
 				};
 			}
@@ -1571,10 +1567,8 @@ public class Matchers {
 			public static Matcher equals(final CharSequence target) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return prefix.toString().contentEquals(target)
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefix.toString().contentEquals(target);
 					}
 				};
 			}
@@ -1585,20 +1579,11 @@ public class Matchers {
 			 *
 			 * @see  String#contentEquals(java.lang.CharSequence)
 			 */
-			public static Matcher equals(final CharSequence target, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher equals(final CharSequence target, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						// TODO: Put this into the parent class, with a "rules" variant and a matches method - others too
-						if(prefix.toString().contentEquals(target)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefix.toString().contentEquals(target);
 					}
 				};
 			}
@@ -1622,10 +1607,8 @@ public class Matchers {
 			public static Matcher equalsIgnoreCase(final String target) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return prefix.toString().equalsIgnoreCase(target)
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefix.toString().equalsIgnoreCase(target);
 					}
 				};
 			}
@@ -1636,19 +1619,11 @@ public class Matchers {
 			 *
 			 * @see  String#equalsIgnoreCase(java.lang.String)
 			 */
-			public static Matcher equalsIgnoreCase(final String target, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher equalsIgnoreCase(final String target, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(prefix.toString().equalsIgnoreCase(target)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefix.toString().equalsIgnoreCase(target);
 					}
 				};
 			}
@@ -1673,10 +1648,8 @@ public class Matchers {
 			public static Matcher matches(final Pattern pattern) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-					   return pattern.matcher(prefix.toString()).matches()
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+					   return pattern.matcher(prefix.toString()).matches();
 					}
 				};
 			}
@@ -1688,19 +1661,11 @@ public class Matchers {
 			 * @see  Pattern#compile(java.lang.String)
 			 * @see  Pattern#compile(java.lang.String, int)
 			 */
-			public static Matcher matches(final Pattern pattern, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher matches(final Pattern pattern, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(pattern.matcher(prefix.toString()).matches()) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return pattern.matcher(prefix.toString()).matches();
 					}
 				};
 			}
@@ -1732,10 +1697,8 @@ public class Matchers {
 			public static Matcher matches(final WildcardPatternMatcher wildcardPattern) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return wildcardPattern.isMatch(prefix.toString())
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return wildcardPattern.isMatch(prefix.toString());
 					}
 				};
 			}
@@ -1750,19 +1713,11 @@ public class Matchers {
 			 *
 			 * @see  WildcardPatternMatcher#compile(java.lang.String)
 			 */
-			public static Matcher matches(final WildcardPatternMatcher wildcardPattern, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher matches(final WildcardPatternMatcher wildcardPattern, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(wildcardPattern.isMatch(prefix.toString())) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return wildcardPattern.isMatch(prefix.toString());
 					}
 				};
 			}
@@ -1786,7 +1741,7 @@ public class Matchers {
 
 		// <editor-fold defaultstate="collapsed" desc="prefixPath">
 		/**
-		 * @see  PathSpace.PathMatch#getPrefixPath()
+		 * @see  PathMatch#getPrefixPath()
 		 */
 		public static class prefixPath {
 
@@ -1801,10 +1756,8 @@ public class Matchers {
 			public static Matcher startsWith(final String prefix) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix _prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return prefixPath.toString().startsWith(prefix)
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix _prefix, Path prefixPath, Path path) {
+						return prefixPath.toString().startsWith(prefix);
 					}
 				};
 			}
@@ -1816,19 +1769,11 @@ public class Matchers {
 			 *
 			 * @see  String#startsWith(java.lang.String)
 			 */
-			public static Matcher startsWith(final String prefix, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher startsWith(final String prefix, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix _prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(prefixPath.toString().startsWith(prefix)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix _prefix, Path prefixPath, Path path) {
+						return prefixPath.toString().startsWith(prefix);
 					}
 				};
 			}
@@ -1854,10 +1799,8 @@ public class Matchers {
 			public static Matcher endsWith(final String suffix) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return prefixPath.toString().endsWith(suffix)
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefixPath.toString().endsWith(suffix);
 					}
 				};
 			}
@@ -1869,19 +1812,11 @@ public class Matchers {
 			 *
 			 * @see  String#endsWith(java.lang.String)
 			 */
-			public static Matcher endsWith(final String suffix, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher endsWith(final String suffix, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix _prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(prefixPath.toString().endsWith(suffix)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefixPath.toString().endsWith(suffix);
 					}
 				};
 			}
@@ -1907,10 +1842,8 @@ public class Matchers {
 			public static Matcher contains(final CharSequence substring) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return prefixPath.toString().contains(substring)
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefixPath.toString().contains(substring);
 					}
 				};
 			}
@@ -1922,19 +1855,11 @@ public class Matchers {
 			 *
 			 * @see  String#contains(java.lang.CharSequence)
 			 */
-			public static Matcher contains(final CharSequence substring, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher contains(final CharSequence substring, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(prefixPath.toString().contains(substring)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefixPath.toString().contains(substring);
 					}
 				};
 			}
@@ -1954,15 +1879,13 @@ public class Matchers {
 			/**
 			 * Matches when a request prefix path is equal to a given string, case-sensitive.
 			 *
-			 * @see  com.aoindustries.net.Path#equals(java.lang.Object)
+			 * @see  Path#equals(java.lang.Object)
 			 */
-			public static Matcher equals(final com.aoindustries.net.Path target) {
+			public static Matcher equals(final Path target) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return prefixPath.equals(target)
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefixPath.equals(target);
 					}
 				};
 			}
@@ -1971,21 +1894,13 @@ public class Matchers {
 			 * Matches when a request prefix path is equal to a given string, case-sensitive.
 			 * Invokes the provided rules only when matched.
 			 *
-			 * @see  com.aoindustries.net.Path#equals(java.lang.Object)
+			 * @see  Path#equals(java.lang.Object)
 			 */
-			public static Matcher equals(final com.aoindustries.net.Path target, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher equals(final Path target, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(prefixPath.equals(target)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefixPath.equals(target);
 					}
 				};
 			}
@@ -1994,9 +1909,9 @@ public class Matchers {
 			 * Matches when a request prefix path is equal to a given string, case-sensitive.
 			 * Invokes the provided rules only when matched.
 			 *
-			 * @see  com.aoindustries.net.Path#equals(java.lang.Object)
+			 * @see  Path#equals(java.lang.Object)
 			 */
-			public static Matcher equals(com.aoindustries.net.Path target, Rule ... rules) {
+			public static Matcher equals(Path target, Rule ... rules) {
 				if(rules.length == 0) return equals(target);
 				return equals(target, Arrays.asList(rules));
 			}
@@ -2004,11 +1919,11 @@ public class Matchers {
 			/**
 			 * Matches when a request prefix path is equal to a given string, case-sensitive.
 			 *
-			 * @see  com.aoindustries.net.Path#valueOf(java.lang.String)
+			 * @see  Path#valueOf(java.lang.String)
 			 */
 			public static Matcher equals(String target) {
 				try {
-					return equals(com.aoindustries.net.Path.valueOf(target));
+					return equals(Path.valueOf(target));
 				} catch(ValidationException e) {
 					throw new IllegalArgumentException(e);
 				}
@@ -2018,11 +1933,11 @@ public class Matchers {
 			 * Matches when a request prefix path is equal to a given string, case-sensitive.
 			 * Invokes the provided rules only when matched.
 			 *
-			 * @see  com.aoindustries.net.Path#valueOf(java.lang.String)
+			 * @see  Path#valueOf(java.lang.String)
 			 */
 			public static Matcher equals(String target, Iterable<? extends Rule> rules) {
 				try {
-					return equals(com.aoindustries.net.Path.valueOf(target), rules);
+					return equals(Path.valueOf(target), rules);
 				} catch(ValidationException e) {
 					throw new IllegalArgumentException(e);
 				}
@@ -2032,11 +1947,11 @@ public class Matchers {
 			 * Matches when a request prefix path is equal to a given string, case-sensitive.
 			 * Invokes the provided rules only when matched.
 			 *
-			 * @see  com.aoindustries.net.Path#valueOf(java.lang.String)
+			 * @see  Path#valueOf(java.lang.String)
 			 */
 			public static Matcher equals(String target, Rule ... rules) {
 				try {
-					return equals(com.aoindustries.net.Path.valueOf(target), rules);
+					return equals(Path.valueOf(target), rules);
 				} catch(ValidationException e) {
 					throw new IllegalArgumentException(e);
 				}
@@ -2050,10 +1965,8 @@ public class Matchers {
 			public static Matcher equals(final CharSequence target) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return prefixPath.toString().contentEquals(target)
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefixPath.toString().contentEquals(target);
 					}
 				};
 			}
@@ -2064,19 +1977,11 @@ public class Matchers {
 			 *
 			 * @see  String#contentEquals(java.lang.CharSequence)
 			 */
-			public static Matcher equals(final CharSequence target, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher equals(final CharSequence target, Iterable<? extends Rule> rules) { // TODO:Final not needed
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(prefixPath.toString().contentEquals(target)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefixPath.toString().contentEquals(target);
 					}
 				};
 			}
@@ -2100,10 +2005,8 @@ public class Matchers {
 			public static Matcher equalsIgnoreCase(final String target) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return prefixPath.toString().equalsIgnoreCase(target)
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefixPath.toString().equalsIgnoreCase(target);
 					}
 				};
 			}
@@ -2114,19 +2017,11 @@ public class Matchers {
 			 *
 			 * @see  String#equalsIgnoreCase(java.lang.String)
 			 */
-			public static Matcher equalsIgnoreCase(final String target, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher equalsIgnoreCase(final String target, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(prefixPath.toString().equalsIgnoreCase(target)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return prefixPath.toString().equalsIgnoreCase(target);
 					}
 				};
 			}
@@ -2151,10 +2046,8 @@ public class Matchers {
 			public static Matcher matches(final Pattern pattern) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return pattern.matcher(prefixPath.toString()).matches()
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return pattern.matcher(prefixPath.toString()).matches();
 					}
 				};
 			}
@@ -2166,19 +2059,11 @@ public class Matchers {
 			 * @see  Pattern#compile(java.lang.String)
 			 * @see  Pattern#compile(java.lang.String, int)
 			 */
-			public static Matcher matches(final Pattern pattern, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher matches(final Pattern pattern, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(pattern.matcher(prefixPath.toString()).matches()) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return pattern.matcher(prefixPath.toString()).matches();
 					}
 				};
 			}
@@ -2210,10 +2095,8 @@ public class Matchers {
 			public static Matcher matches(final WildcardPatternMatcher wildcardPattern) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return wildcardPattern.isMatch(prefixPath.toString())
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return wildcardPattern.isMatch(prefixPath.toString());
 					}
 				};
 			}
@@ -2228,19 +2111,11 @@ public class Matchers {
 			 *
 			 * @see  WildcardPatternMatcher#compile(java.lang.String)
 			 */
-			public static Matcher matches(final WildcardPatternMatcher wildcardPattern, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher matches(final WildcardPatternMatcher wildcardPattern, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(wildcardPattern.isMatch(prefixPath.toString())) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return wildcardPattern.isMatch(prefixPath.toString());
 					}
 				};
 			}
@@ -2264,7 +2139,7 @@ public class Matchers {
 
 		// <editor-fold defaultstate="collapsed" desc="path">
 		/**
-		 * @see  PathSpace.PathMatch#getPath()
+		 * @see  PathMatch#getPath()
 		 */
 		public static class path {
 
@@ -2279,10 +2154,8 @@ public class Matchers {
 			public static Matcher startsWith(final String prefix) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix _prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return path.toString().startsWith(prefix)
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix _prefix, Path prefixPath, Path path) {
+						return path.toString().startsWith(prefix);
 					}
 				};
 			}
@@ -2294,19 +2167,11 @@ public class Matchers {
 			 *
 			 * @see  String#startsWith(java.lang.String)
 			 */
-			public static Matcher startsWith(final String prefix, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher startsWith(final String prefix, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix _prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(path.toString().startsWith(prefix)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix _prefix, Path prefixPath, Path path) {
+						return path.toString().startsWith(prefix);
 					}
 				};
 			}
@@ -2332,10 +2197,8 @@ public class Matchers {
 			public static Matcher endsWith(final String suffix) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return path.toString().endsWith(suffix)
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return path.toString().endsWith(suffix);
 					}
 				};
 			}
@@ -2347,19 +2210,11 @@ public class Matchers {
 			 *
 			 * @see  String#endsWith(java.lang.String)
 			 */
-			public static Matcher endsWith(final String suffix, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher endsWith(final String suffix, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix _prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(path.toString().endsWith(suffix)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return path.toString().endsWith(suffix);
 					}
 				};
 			}
@@ -2385,10 +2240,8 @@ public class Matchers {
 			public static Matcher contains(final CharSequence substring) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return path.toString().contains(substring)
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return path.toString().contains(substring);
 					}
 				};
 			}
@@ -2400,19 +2253,11 @@ public class Matchers {
 			 *
 			 * @see  String#contains(java.lang.CharSequence)
 			 */
-			public static Matcher contains(final CharSequence substring, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher contains(final CharSequence substring, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(path.toString().contains(substring)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return path.toString().contains(substring);
 					}
 				};
 			}
@@ -2432,15 +2277,13 @@ public class Matchers {
 			/**
 			 * Matches when a request path is equal to a given string, case-sensitive.
 			 *
-			 * @see  com.aoindustries.net.Path#equals(java.lang.Object)
+			 * @see  Path#equals(java.lang.Object)
 			 */
-			public static Matcher equals(final com.aoindustries.net.Path target) {
+			public static Matcher equals(final Path target) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return path.equals(target)
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return path.equals(target);
 					}
 				};
 			}
@@ -2449,21 +2292,13 @@ public class Matchers {
 			 * Matches when a request path is equal to a given string, case-sensitive.
 			 * Invokes the provided rules only when matched.
 			 *
-			 * @see  com.aoindustries.net.Path#equals(java.lang.Object)
+			 * @see  Path#equals(java.lang.Object)
 			 */
-			public static Matcher equals(final com.aoindustries.net.Path target, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher equals(final Path target, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(path.equals(target)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return path.equals(target);
 					}
 				};
 			}
@@ -2472,9 +2307,9 @@ public class Matchers {
 			 * Matches when a request path is equal to a given string, case-sensitive.
 			 * Invokes the provided rules only when matched.
 			 *
-			 * @see  com.aoindustries.net.Path#equals(java.lang.Object)
+			 * @see  Path#equals(java.lang.Object)
 			 */
-			public static Matcher equals(com.aoindustries.net.Path target, Rule ... rules) {
+			public static Matcher equals(Path target, Rule ... rules) {
 				if(rules.length == 0) return equals(target);
 				return equals(target, Arrays.asList(rules));
 			}
@@ -2482,11 +2317,11 @@ public class Matchers {
 			/**
 			 * Matches when a request path is equal to a given string, case-sensitive.
 			 *
-			 * @see  com.aoindustries.net.Path#valueOf(java.lang.String)
+			 * @see  Path#valueOf(java.lang.String)
 			 */
 			public static Matcher equals(String target) {
 				try {
-					return equals(com.aoindustries.net.Path.valueOf(target));
+					return equals(Path.valueOf(target));
 				} catch(ValidationException e) {
 					throw new IllegalArgumentException(e);
 				}
@@ -2496,11 +2331,11 @@ public class Matchers {
 			 * Matches when a request path is equal to a given string, case-sensitive.
 			 * Invokes the provided rules only when matched.
 			 *
-			 * @see  com.aoindustries.net.Path#valueOf(java.lang.String)
+			 * @see  Path#valueOf(java.lang.String)
 			 */
 			public static Matcher equals(String target, Iterable<? extends Rule> rules) {
 				try {
-					return equals(com.aoindustries.net.Path.valueOf(target), rules);
+					return equals(Path.valueOf(target), rules);
 				} catch(ValidationException e) {
 					throw new IllegalArgumentException(e);
 				}
@@ -2510,11 +2345,11 @@ public class Matchers {
 			 * Matches when a request path is equal to a given string, case-sensitive.
 			 * Invokes the provided rules only when matched.
 			 *
-			 * @see  com.aoindustries.net.Path#valueOf(java.lang.String)
+			 * @see  Path#valueOf(java.lang.String)
 			 */
 			public static Matcher equals(String target, Rule ... rules) {
 				try {
-					return equals(com.aoindustries.net.Path.valueOf(target), rules);
+					return equals(Path.valueOf(target), rules);
 				} catch(ValidationException e) {
 					throw new IllegalArgumentException(e);
 				}
@@ -2528,10 +2363,8 @@ public class Matchers {
 			public static Matcher equals(final CharSequence target) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return path.toString().contentEquals(target)
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return path.toString().contentEquals(target);
 					}
 				};
 			}
@@ -2542,19 +2375,11 @@ public class Matchers {
 			 *
 			 * @see  String#contentEquals(java.lang.CharSequence)
 			 */
-			public static Matcher equals(final CharSequence target, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher equals(final CharSequence target, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(path.toString().contentEquals(target)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return path.toString().contentEquals(target);
 					}
 				};
 			}
@@ -2578,10 +2403,8 @@ public class Matchers {
 			public static Matcher equalsIgnoreCase(final String target) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return path.toString().equalsIgnoreCase(target)
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return path.toString().equalsIgnoreCase(target);
 					}
 				};
 			}
@@ -2592,19 +2415,11 @@ public class Matchers {
 			 *
 			 * @see  String#equalsIgnoreCase(java.lang.String)
 			 */
-			public static Matcher equalsIgnoreCase(final String target, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher equalsIgnoreCase(final String target, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(path.toString().equalsIgnoreCase(target)) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return path.toString().equalsIgnoreCase(target);
 					}
 				};
 			}
@@ -2629,10 +2444,8 @@ public class Matchers {
 			public static Matcher matches(final Pattern pattern) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return pattern.matcher(path.toString()).matches()
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return pattern.matcher(path.toString()).matches();
 					}
 				};
 			}
@@ -2644,19 +2457,11 @@ public class Matchers {
 			 * @see  Pattern#compile(java.lang.String)
 			 * @see  Pattern#compile(java.lang.String, int)
 			 */
-			public static Matcher matches(final Pattern pattern, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher matches(final Pattern pattern, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(pattern.matcher(path.toString()).matches()) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return pattern.matcher(path.toString()).matches();
 					}
 				};
 			}
@@ -2688,10 +2493,8 @@ public class Matchers {
 			public static Matcher matches(final WildcardPatternMatcher wildcardPattern) {
 				return new PathMatchMatcher() {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) {
-						return wildcardPattern.isMatch(path.toString())
-							? Result.MATCH
-							: Result.NO_MATCH;
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return wildcardPattern.isMatch(path.toString());
 					}
 				};
 			}
@@ -2706,19 +2509,11 @@ public class Matchers {
 			 *
 			 * @see  WildcardPatternMatcher#compile(java.lang.String)
 			 */
-			public static Matcher matches(final WildcardPatternMatcher wildcardPattern, final Iterable<? extends Rule> rules) {
-				return new PathMatchMatcher() {
+			public static Matcher matches(final WildcardPatternMatcher wildcardPattern, Iterable<? extends Rule> rules) {
+				return new PathMatchMatcherWithRules(rules) {
 					@Override
-					public Result perform(HttpServletRequest request, HttpServletResponse response, FilterChain chain, com.aoindustries.net.pathspace.Prefix prefix, com.aoindustries.net.Path prefixPath, com.aoindustries.net.Path path) throws IOException, ServletException {
-						if(wildcardPattern.isMatch(path.toString())) {
-							for(Rule rule : rules) {
-								Result result = rule.perform(request, response, chain);
-								if(result == Result.TERMINATE) return Result.TERMINATE;
-							}
-							return Result.MATCH;
-						} else {
-							return Result.NO_MATCH;
-						}
+					protected boolean matches(FirewallContext context, HttpServletRequest request, com.aoindustries.net.pathspace.Prefix prefix, Path prefixPath, Path path) {
+						return wildcardPattern.isMatch(path.toString());
 					}
 				};
 			}
