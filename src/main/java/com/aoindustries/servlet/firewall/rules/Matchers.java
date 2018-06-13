@@ -1272,8 +1272,8 @@ public class Matchers {
 		 *
 		 * @throws ServletException when no {@link PathMatch} set.
 		 */
-		private static PathMatch<?> getPathMatch(ServletRequest request) throws ServletException {
-			PathMatch<?> pathMatch = (PathMatch<?>)request.getAttribute(PATH_MATCH_REQUEST_KEY);
+		private static PathMatch<?> getPathMatch(FirewallContext context) throws ServletException {
+			PathMatch<?> pathMatch = (PathMatch<?>)context.getAttribute(PATH_MATCH_REQUEST_KEY);
 			if(pathMatch == null) throw new ServletException("PathMatch not set on request");
 			return pathMatch;
 		}
@@ -1281,7 +1281,7 @@ public class Matchers {
 		private abstract static class PathMatchMatcher implements Matcher {
 			@Override
 			final public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-				PathMatch<?> pathMatch = getPathMatch(request);
+				PathMatch<?> pathMatch = getPathMatch(context);
 				if(
 					matches(
 						context,
@@ -1327,7 +1327,7 @@ public class Matchers {
 
 			@Override
 			final public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-				PathMatch<?> pathMatch = getPathMatch(request);
+				PathMatch<?> pathMatch = getPathMatch(context);
 				return doMatches(
 					matches(
 						context,
