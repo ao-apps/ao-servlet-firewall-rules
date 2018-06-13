@@ -63,6 +63,10 @@ import javax.servlet.http.HttpServletRequest;
  *
  * @implNote  Arrays are not necessarily defensively copied, but the elements of the arrays might also be extracted.  Mutation of
  *            arrays is not supported.
+ *
+ * @implNote  This is admittedly overload-heavy.  We are paying the price here in order to have the absolutely
+ *            cleanest possible rule definitions.  Perhaps a future version of Java will introduce optional parameters
+ *            and this can be cleaned-up some.
  */
 public class Matchers {
 
