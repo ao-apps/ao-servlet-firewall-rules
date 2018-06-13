@@ -149,7 +149,7 @@ public class Rules {
 	/**
 	 * Matches all.
 	 *
-	 * @return  {@link Matcher.Result#MATCH} always
+	 * @return  Returns {@link Matcher.Result#MATCH} always
 	 */
 	// TODO: Rename MATCH?
 	// TODO: Java 1.8+ for all ao-servlet-firewall, for lots of Lambda reductions here?
@@ -436,7 +436,7 @@ public class Rules {
 	/**
 	 * Performs no action.
 	 *
-	 * @return  {@link Action.Result#CONTINUE} always
+	 * @return  Returns {@link Action.Result#CONTINUE} always
 	 */
 	public static final Action CONTINUE = new Action() {
 		@Override
@@ -448,7 +448,7 @@ public class Rules {
 	/**
 	 * Performs no action and terminates request processing.
 	 *
-	 * @return  {@link Action.Result#TERMINATE} always
+	 * @return  Returns {@link Action.Result#TERMINATE} always
 	 */
 	public static final Action TERMINATE = new Action() {
 		@Override
@@ -477,7 +477,7 @@ public class Rules {
 		/**
 		 * @see  FilterChain#doFilter(javax.servlet.ServletRequest, javax.servlet.ServletResponse)
 		 *
-		 * @return  {@link Action.Result#TERMINATE} always
+		 * @return  Returns {@link Action.Result#TERMINATE} always
 		 */
 		public static final Action doFilter = new Action() {
 			@Override
@@ -521,7 +521,7 @@ public class Rules {
 		/**
 		 * @see  ServletContext#log(java.lang.String)
 		 *
-		 * @return  {@link Action.Result#CONTINUE} always
+		 * @return  Returns {@link Action.Result#CONTINUE} always
 		 */
 		public static final Action log = new Action() {
 			@Override
@@ -537,7 +537,7 @@ public class Rules {
 		/**
 		 * @see  ServletContext#log(java.lang.String)
 		 *
-		 * @return  {@link Action.Result#CONTINUE} always
+		 * @return  Returns {@link Action.Result#CONTINUE} always
 		 */
 		// TODO: Version with a Callable<String>? Java 1.8 functional interface?
 		public static Action log(final String message) {
@@ -2240,7 +2240,7 @@ public class Rules {
 		/**
 		 * @see  HttpServletRequest#logout()
 		 *
-		 * @return  {@link Action.Result#CONTINUE} always
+		 * @return  Returns {@link Action.Result#CONTINUE} always
 		 */
 		public static final Action logout = new Action() {
 			@Override
@@ -2313,7 +2313,7 @@ public class Rules {
 			 *
 			 * @see  HttpServletResponse#sendError(int)
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			private static class SendError implements Action {
 				private final int sc;
@@ -2332,7 +2332,7 @@ public class Rules {
 			 *
 			 * @see  HttpServletResponse#sendError(int)
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action sendError(int sc) {
 				switch(sc) {
@@ -2386,7 +2386,7 @@ public class Rules {
 			 *
 			 * @see  HttpServletResponse#sendError(int, java.lang.String)
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action sendError(final int sc, final String message) {
 				return new Action() {
@@ -2401,91 +2401,91 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_CONTINUE
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action CONTINUE = new SendError(HttpServletResponse.SC_CONTINUE);
 
 			/**
 			 * @see  HttpServletResponse#SC_SWITCHING_PROTOCOLS
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action SWITCHING_PROTOCOLS = new SendError(HttpServletResponse.SC_SWITCHING_PROTOCOLS);
 
 			/**
 			 * @see  HttpServletResponse#SC_OK
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action OK = new SendError(HttpServletResponse.SC_OK);
 
 			/**
 			 * @see  HttpServletResponse#SC_CREATED
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action CREATED = new SendError(HttpServletResponse.SC_CREATED);
 
 			/**
 			 * @see  HttpServletResponse#SC_ACCEPTED
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action ACCEPTED = new SendError(HttpServletResponse.SC_ACCEPTED);
 
 			/**
 			 * @see  HttpServletResponse#SC_NON_AUTHORITATIVE_INFORMATION
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action NON_AUTHORITATIVE_INFORMATION = new SendError(HttpServletResponse.SC_NON_AUTHORITATIVE_INFORMATION);
 
 			/**
 			 * @see  HttpServletResponse#SC_NO_CONTENT
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action NO_CONTENT = new SendError(HttpServletResponse.SC_NO_CONTENT);
 
 			/**
 			 * @see  HttpServletResponse#SC_RESET_CONTENT
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action RESET_CONTENT = new SendError(HttpServletResponse.SC_RESET_CONTENT);
 
 			/**
 			 * @see  HttpServletResponse#SC_PARTIAL_CONTENT
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action PARTIAL_CONTENT = new SendError(HttpServletResponse.SC_PARTIAL_CONTENT);
 
 			/**
 			 * @see  HttpServletResponse#SC_MULTIPLE_CHOICES
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action MULTIPLE_CHOICES = new SendError(HttpServletResponse.SC_MULTIPLE_CHOICES);
 
 			/**
 			 * @see  HttpServletResponse#SC_MOVED_PERMANENTLY
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action MOVED_PERMANENTLY = new SendError(HttpServletResponse.SC_MOVED_PERMANENTLY);
 
 			/**
 			 * @see  HttpServletResponse#SC_FOUND
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action FOUND = new SendError(HttpServletResponse.SC_FOUND);
 
 			/**
 			 * @see  HttpServletResponse#SC_MOVED_TEMPORARILY
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 *
 			 * @deprecated  Please use {@link #FOUND}
 			 */
@@ -2495,196 +2495,196 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_SEE_OTHER
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action SEE_OTHER = new SendError(HttpServletResponse.SC_SEE_OTHER);
 
 			/**
 			 * @see  HttpServletResponse#SC_NOT_MODIFIED
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action NOT_MODIFIED = new SendError(HttpServletResponse.SC_NOT_MODIFIED);
 
 			/**
 			 * @see  HttpServletResponse#SC_USE_PROXY
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action USE_PROXY = new SendError(HttpServletResponse.SC_USE_PROXY);
 
 			/**
 			 * @see  HttpServletResponse#SC_TEMPORARY_REDIRECT
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action TEMPORARY_REDIRECT = new SendError(HttpServletResponse.SC_TEMPORARY_REDIRECT);
 
 			/**
 			 * @see  HttpServletResponse#SC_BAD_REQUEST
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action BAD_REQUEST = new SendError(HttpServletResponse.SC_BAD_REQUEST);
 
 			/**
 			 * @see  HttpServletResponse#SC_UNAUTHORIZED
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action UNAUTHORIZED = new SendError(HttpServletResponse.SC_UNAUTHORIZED);
 
 			/**
 			 * @see  HttpServletResponse#SC_PAYMENT_REQUIRED
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action PAYMENT_REQUIRED = new SendError(HttpServletResponse.SC_PAYMENT_REQUIRED);
 
 			/**
 			 * @see  HttpServletResponse#SC_FORBIDDEN
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action FORBIDDEN = new SendError(HttpServletResponse.SC_FORBIDDEN);
 
 			/**
 			 * @see  HttpServletResponse#SC_NOT_FOUND
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action NOT_FOUND = new SendError(HttpServletResponse.SC_NOT_FOUND);
 
 			/**
 			 * @see  HttpServletResponse#SC_METHOD_NOT_ALLOWED
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action METHOD_NOT_ALLOWED = new SendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
 
 			/**
 			 * @see  HttpServletResponse#SC_NOT_ACCEPTABLE
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action NOT_ACCEPTABLE = new SendError(HttpServletResponse.SC_NOT_ACCEPTABLE);
 
 			/**
 			 * @see  HttpServletResponse#SC_PROXY_AUTHENTICATION_REQUIRED
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action PROXY_AUTHENTICATION_REQUIRED = new SendError(HttpServletResponse.SC_PROXY_AUTHENTICATION_REQUIRED);
 
 			/**
 			 * @see  HttpServletResponse#SC_REQUEST_TIMEOUT
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action REQUEST_TIMEOUT = new SendError(HttpServletResponse.SC_REQUEST_TIMEOUT);
 
 			/**
 			 * @see  HttpServletResponse#SC_CONFLICT
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action CONFLICT = new SendError(HttpServletResponse.SC_CONFLICT);
 
 			/**
 			 * @see  HttpServletResponse#SC_GONE
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action GONE = new SendError(HttpServletResponse.SC_GONE);
 
 			/**
 			 * @see  HttpServletResponse#SC_LENGTH_REQUIRED
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action LENGTH_REQUIRED = new SendError(HttpServletResponse.SC_LENGTH_REQUIRED);
 
 			/**
 			 * @see  HttpServletResponse#SC_PRECONDITION_FAILED
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action PRECONDITION_FAILED = new SendError(HttpServletResponse.SC_PRECONDITION_FAILED);
 
 			/**
 			 * @see  HttpServletResponse#SC_REQUEST_ENTITY_TOO_LARGE
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action REQUEST_ENTITY_TOO_LARGE = new SendError(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
 
 			/**
 			 * @see  HttpServletResponse#SC_REQUEST_URI_TOO_LONG
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action REQUEST_URI_TOO_LONG = new SendError(HttpServletResponse.SC_REQUEST_URI_TOO_LONG);
 
 			/**
 			 * @see  HttpServletResponse#SC_UNSUPPORTED_MEDIA_TYPE
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action UNSUPPORTED_MEDIA_TYPE = new SendError(HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE);
 
 			/**
 			 * @see  HttpServletResponse#SC_REQUESTED_RANGE_NOT_SATISFIABLE
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action REQUESTED_RANGE_NOT_SATISFIABLE = new SendError(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
 
 			/**
 			 * @see  HttpServletResponse#SC_EXPECTATION_FAILED
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action EXPECTATION_FAILED = new SendError(HttpServletResponse.SC_EXPECTATION_FAILED);
 
 			/**
 			 * @see  HttpServletResponse#SC_INTERNAL_SERVER_ERROR
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action INTERNAL_SERVER_ERROR = new SendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 
 			/**
 			 * @see  HttpServletResponse#SC_NOT_IMPLEMENTED
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action NOT_IMPLEMENTED = new SendError(HttpServletResponse.SC_NOT_IMPLEMENTED);
 
 			/**
 			 * @see  HttpServletResponse#SC_BAD_GATEWAY
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action BAD_GATEWAY = new SendError(HttpServletResponse.SC_BAD_GATEWAY);
 
 			/**
 			 * @see  HttpServletResponse#SC_SERVICE_UNAVAILABLE
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action SERVICE_UNAVAILABLE = new SendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
 
 			/**
 			 * @see  HttpServletResponse#SC_GATEWAY_TIMEOUT
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action GATEWAY_TIMEOUT = new SendError(HttpServletResponse.SC_GATEWAY_TIMEOUT);
 
 			/**
 			 * @see  HttpServletResponse#SC_HTTP_VERSION_NOT_SUPPORTED
 			 *
-			 * @return  {@link Action.Result#TERMINATE} always
+			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action HTTP_VERSION_NOT_SUPPORTED = new SendError(HttpServletResponse.SC_HTTP_VERSION_NOT_SUPPORTED);
 		}
@@ -2702,8 +2702,4 @@ public class Rules {
 	// TODO: javax.servlet.descriptor package?
 
 	// TODO: AO-include/forward args?
-
-	static {
-		Rules.none
-	}
 }
