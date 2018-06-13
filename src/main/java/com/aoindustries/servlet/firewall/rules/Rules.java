@@ -25,7 +25,6 @@ package com.aoindustries.servlet.firewall.rules;
 import com.aoindustries.servlet.firewall.api.Action;
 import com.aoindustries.servlet.firewall.api.FirewallContext;
 import com.aoindustries.servlet.firewall.api.Matcher;
-import com.aoindustries.servlet.firewall.api.Matcher.Result;
 import static com.aoindustries.servlet.firewall.api.MatcherUtil.callRules;
 import static com.aoindustries.servlet.firewall.api.MatcherUtil.doMatches;
 import com.aoindustries.servlet.firewall.api.Rule;
@@ -36,13 +35,16 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import javax.servlet.DispatcherType;
+import javax.servlet.FilterChain;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
- * A set of simple {@link Matcher} implementations.
+ * A set of base {@link Matcher} and {@link Action} implementations based on
+ * the servlet API and firewall API.
  *
  * TODO: Don't like the idea of xml files declaring stuff away from where is used.
  * TODO: How to get the blocked-unless-enabled approach, and the servlet path spaces?
@@ -65,35 +67,35 @@ import javax.servlet.http.HttpServletRequest;
  *            cleanest possible rule definitions.  Perhaps a future version of Java will introduce optional parameters
  *            and this can be cleaned-up some.
  */
-public class Matchers {
+public class Rules {
 
-	private Matchers() {}
+	private Rules() {}
 
 	// <editor-fold defaultstate="collapsed" desc="Logic">
 	/**
 	 * Matches none.
 	 *
-	 * @return  {@link Result#NO_MATCH} always
+	 * @return  {@link Matcher.Result#NO_MATCH} always
 	 *
 	 * @see  #any(java.lang.Iterable)
 	 * @see  #any(com.aoindustries.servlet.firewall.rules.Rule...)
 	 */
 	public static final Matcher none = new Matcher() {
 		@Override
-		public Result perform(FirewallContext context, HttpServletRequest request) {
-			return Result.NO_MATCH;
+		public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
+			return Matcher.Result.NO_MATCH;
 		}
 	};
 
 	/**
 	 * Matches all.
 	 *
-	 * @return  {@link Result#MATCH} always
+	 * @return  {@link Matcher.Result#MATCH} always
 	 */
 	public static final Matcher all = new Matcher() {
 		@Override
-		public Result perform(FirewallContext context, HttpServletRequest request) {
-			return Result.MATCH;
+		public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
+			return Matcher.Result.MATCH;
 		}
 	};
 
@@ -102,20 +104,20 @@ public class Matchers {
 	 * Stops processing {@code rules} (both matchers and actions) when the first matcher does not match.
 	 * Performs any actions while processing rules, up to the point stopped on first non-matching matcher.
 	 *
-	 * @return  {@link Result#MATCH} when rules is empty
+	 * @return  {@link Matcher.Result#MATCH} when rules is empty
 	 */
 	public static Matcher all(final Iterable<? extends Rule> rules) {
 		return new Matcher() {
 			@Override
-			public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+			public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 				for(Rule rule : rules) {
 					if(rule instanceof Matcher) {
-						Result result = context.call((Matcher)rule);
+						Matcher.Result result = context.call((Matcher)rule);
 						switch(result) {
 							case TERMINATE :
-								return Result.TERMINATE;
+								return Matcher.Result.TERMINATE;
 							case NO_MATCH :
-								return Result.NO_MATCH;
+								return Matcher.Result.NO_MATCH;
 							case MATCH :
 								break;
 							default :
@@ -126,7 +128,7 @@ public class Matchers {
 						Action.Result result = context.call((Action)rule);
 						switch(result) {
 							case TERMINATE :
-								return Result.TERMINATE;
+								return Matcher.Result.TERMINATE;
 							case CONTINUE :
 								break;
 							default :
@@ -134,7 +136,7 @@ public class Matchers {
 						}
 					}
 				}
-				return Result.MATCH;
+				return Matcher.Result.MATCH;
 			}
 		};
 	}
@@ -146,20 +148,20 @@ public class Matchers {
 	 *
 	 * @param  otherwise  Performs all {@code otherwise} rules only when a matcher in {@code matches} does not match.
 	 *
-	 * @return  {@link Result#MATCH} when rules is empty
+	 * @return  {@link Matcher.Result#MATCH} when rules is empty
 	 */
 	public static Matcher all(final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
 		return new Matcher() {
 			@Override
-			public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+			public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 				boolean matched = true;
 				RULES :
 				for(Rule rule : rules) {
 					if(rule instanceof Matcher) {
-						Result result = context.call((Matcher)rule);
+						Matcher.Result result = context.call((Matcher)rule);
 						switch(result) {
 							case TERMINATE :
-								return Result.TERMINATE;
+								return Matcher.Result.TERMINATE;
 							case NO_MATCH :
 								matched = false;
 								// Move on to otherwise
@@ -175,7 +177,7 @@ public class Matchers {
 						Action.Result result = context.call((Action)rule);
 						switch(result) {
 							case TERMINATE :
-								return Result.TERMINATE;
+								return Matcher.Result.TERMINATE;
 							case CONTINUE :
 								// Continue to next rule
 								break;
@@ -185,9 +187,9 @@ public class Matchers {
 					}
 				}
 				if(matched) {
-					return Result.MATCH;
+					return Matcher.Result.MATCH;
 				} else {
-					return callRules(context, otherwise, Result.NO_MATCH);
+					return callRules(context, otherwise, Matcher.Result.NO_MATCH);
 				}
 			}
 		};
@@ -208,22 +210,22 @@ public class Matchers {
 	 * Stops processing matchers once the first match is found.
 	 * Begins processing actions once the first match is found.
 	 *
-	 * @return  {@link Result#NO_MATCH} when rules is empty
+	 * @return  {@link Matcher.Result#NO_MATCH} when rules is empty
 	 *
 	 * @see  #none
 	 */
 	public static Matcher any(final Iterable<? extends Rule> rules) {
 		return new Matcher() {
 			@Override
-			public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+			public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 				boolean matched = false;
 				for(Rule rule : rules) {
 					if(rule instanceof Matcher) {
 						if(!matched) {
-							Result result = context.call((Matcher)rule);
+							Matcher.Result result = context.call((Matcher)rule);
 							switch(result) {
 								case TERMINATE :
-									return Result.TERMINATE;
+									return Matcher.Result.TERMINATE;
 								case MATCH :
 									matched = true;
 									break;
@@ -240,7 +242,7 @@ public class Matchers {
 							Action.Result result = context.call((Action)rule);
 							switch(result) {
 								case TERMINATE :
-									return Result.TERMINATE;
+									return Matcher.Result.TERMINATE;
 								case CONTINUE :
 									// Continue with any additional actions
 									break;
@@ -250,7 +252,7 @@ public class Matchers {
 						}
 					}
 				}
-				return matched ? Result.MATCH : Result.NO_MATCH;
+				return matched ? Matcher.Result.MATCH : Matcher.Result.NO_MATCH;
 			}
 		};
 	}
@@ -262,22 +264,22 @@ public class Matchers {
 	 *
 	 * @param  otherwise  Performs all {@code otherwise} rules only when no matcher in {@code matches} matches.
 	 *
-	 * @return  {@link Result#NO_MATCH} when rules is empty
+	 * @return  {@link Matcher.Result#NO_MATCH} when rules is empty
 	 *
 	 * @see  #none
 	 */
 	public static Matcher any(final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
 		return new Matcher() {
 			@Override
-			public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+			public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 				boolean matched = false;
 				for(Rule rule : rules) {
 					if(rule instanceof Matcher) {
 						if(!matched) {
-							Result result = context.call((Matcher)rule);
+							Matcher.Result result = context.call((Matcher)rule);
 							switch(result) {
 								case TERMINATE :
-									return Result.TERMINATE;
+									return Matcher.Result.TERMINATE;
 								case MATCH :
 									matched = true;
 									break;
@@ -294,7 +296,7 @@ public class Matchers {
 							Action.Result result = context.call((Action)rule);
 							switch(result) {
 								case TERMINATE :
-									return Result.TERMINATE;
+									return Matcher.Result.TERMINATE;
 								case CONTINUE :
 									// Continue with any additional actions
 									break;
@@ -305,9 +307,9 @@ public class Matchers {
 					}
 				}
 				if(matched) {
-					return Result.MATCH;
+					return Matcher.Result.MATCH;
 				} else {
-					return callRules(context, otherwise, Result.NO_MATCH);
+					return callRules(context, otherwise, Matcher.Result.NO_MATCH);
 				}
 			}
 		};
@@ -336,12 +338,12 @@ public class Matchers {
 	public static Matcher not(final Matcher matcher) {
 		return new Matcher() {
 			@Override
-			public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-				Result result = context.call(matcher);
+			public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+				Matcher.Result result = context.call(matcher);
 				switch(result) {
-					case TERMINATE : return Result.TERMINATE;
-					case MATCH     : return Result.NO_MATCH;
-					case NO_MATCH  : return Result.MATCH;
+					case TERMINATE : return Matcher.Result.TERMINATE;
+					case MATCH     : return Matcher.Result.NO_MATCH;
+					case NO_MATCH  : return Matcher.Result.MATCH;
 					default        : throw new AssertionError();
 				}
 			}
@@ -349,10 +351,62 @@ public class Matchers {
 	}
 	// </editor-fold>
 
+	// <editor-fold defaultstate="collapsed" desc="General">
+	/**
+	 * Performs no action.
+	 *
+	 * @return  {@link Action.Result#CONTINUE} always
+	 */
+	public static final Action CONTINUE = new Action() {
+		@Override
+		public Action.Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+			return Action.Result.CONTINUE;
+		}
+	};
+
+	/**
+	 * Performs no action and terminates request processing.
+	 *
+	 * @return  {@link Action.Result#TERMINATE} always
+	 */
+	public static final Action TERMINATE = new Action() {
+		@Override
+		public Action.Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+			return Action.Result.TERMINATE;
+		}
+	};
+
+	// TODO: Options to throw exceptions? IOException, ServletException, SkipPageException (wrapped)
+
+	// </editor-fold>
+
 	// TODO: Registration?
 	// TODO: Servlet/HttpServlet/ServletConfig/ServletRegistration anything useful at filter processing stage?
 
 	// TODO: RequestDispatcher (and all associated constants)?
+
+	// <editor-fold defaultstate="collapsed" desc="chain">
+	/**
+	 * @see  FilterChain
+	 */
+	public static class chain {
+
+		private chain() {}
+
+		/**
+		 * @see  FilterChain#doFilter(javax.servlet.ServletRequest, javax.servlet.ServletResponse)
+		 *
+		 * @return  {@link Action.Result#TERMINATE} always
+		 */
+		public static final Action doFilter = new Action() {
+			@Override
+			public Action.Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
+				chain.doFilter(request, response);
+				return Action.Result.TERMINATE;
+			}
+		};
+	}
+	// </editor-fold>
 
 	// <editor-fold defaultstate="collapsed" desc="servletContext">
 	/**
@@ -366,40 +420,79 @@ public class Matchers {
 
 		// TODO: orderedLibs, tempDir (from constants?)
 
-		// TODO: Attributes (allowing to remove/set in non-terminal action?)
-
 		// TODO: getContextPath()?
-
-		// TODO: Default and Effective SessionTrackingModes?
 
 		// TODO: EffectiveMajorVersion / EffectiveMinorVersion / MajorVersion, MinorVersion?
 
-		// TODO: InitParameters
+		// TODO: Resources?
+		//     TODO: getMimeType
+		//     TODO: getResourcePaths
+		//     TODO: getResource
+		//     TODO: getResourceAsStream
+		//     TODO: getRealPath
 
-		// TODO: jsp-config
-
-		// TODO: hasNamedDispatcher?
-
-		// TODO: getRealPath? (has realPath)?
-
+		// TODO: getRequestDispatcher?
 		// TODO: hasRequestDispatcher?
 
-		// TODO: Resources?
+		// TODO: getNamedDispatcher?
+		// TODO: hasNamedDispatcher?
+
+		/**
+		 * @see  ServletContext#log(java.lang.String)
+		 *
+		 * @return  {@link Action.Result#CONTINUE} always
+		 */
+		public static final Action log = new Action() {
+			@Override
+			public Action.Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+				// TODO: Could log more
+				// TODO: PathPrefix, if present.  Or a way for PathPrefix to register loggers on the FirewallContext
+				// TODO: Also TRACE/stack/integration for logger on FirewallContext?
+				request.getServletContext().log("request.servetPath = " + request.getServletPath()); // TODO: more + ", prefix = " + prefix + ", prefixPath = " + prefixPath + ", path = " + path);
+				return Action.Result.CONTINUE;
+			}
+		};
+
+		/**
+		 * @see  ServletContext#log(java.lang.String)
+		 *
+		 * @return  {@link Action.Result#CONTINUE} always
+		 */
+		// TODO: Version with a Callable<String>? Java 1.8 functional interface?
+		public static Action log(final String message) {
+			return new Action() {
+				@Override
+				public Action.Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
+					// TODO: Could log more or less
+					request.getServletContext().log(message);
+					return Action.Result.CONTINUE;
+				}
+			};
+		}
 
 		// TODO: ServerInfo?
 
+		// TODO: InitParameters
+
+		// TODO: Attributes (allowing to remove/set in non-terminal action?)
+
 		// TODO: ServletContextName?
 
-		// TODO: Servlet registrations?
+		// TODO: getServletRegistration?
 
-		// TODO: SessionCookieConfig?
+		// TODO: getFilterRegistration?
 
-		// TODO: log as non-terminal action?
+		// TODO: getSessionCookieConfig?
+
+		// TODO: SessionTrackingModes?
+
+		// TODO: JspConfigDescriptor?
+
+		// TODO: declareRoles?
 	}
 	// </editor-fold>
 
 	// TODO: Filter name and init parameters from ao-servlet-firewall-filter?
-	// TODO: FilterRegistration?
 
 	// <editor-fold defaultstate="collapsed" desc="request">
 	/**
@@ -412,15 +505,38 @@ public class Matchers {
 
 		// <editor-fold defaultstate="collapsed" desc="ServletRequest">
 
-		// TODO: AsyncContext (and all associated constants)?
-
 		// TODO: Attributes (allowing to remove/set in non-terminal action?)
 
 		// TODO: getCharacterEncoding?
+		// TODO: setCharacterEncoding?
 
 		// TODO: getContentLength?
 
 		// TODO: getContentType?
+
+		// TODO: Parameters
+
+		// TODO: getProtocol
+
+		// TODO: getScheme
+
+		// TODO: getServerName/getServerPort
+
+		// TODO: getRemoteAddr/getRemoteHost/getRemotePort
+
+		// TODO: getLocale(s)
+
+		// TODO: isSecure?
+
+		// TODO: getRequestDispatcher?
+
+		// TODO: getLocalAddr/getLocalName/getLocalPort
+
+		// TODO: startAsync?
+
+		// TODO: isAsyncStarted/Supported?
+
+		// TODO: AsyncContext (and all associated constants)?
 
 		// <editor-fold defaultstate="collapsed" desc="dispatcherType">
 		/**
@@ -436,10 +552,10 @@ public class Matchers {
 					this.dispatcherType = dispatcherType;
 				}
 				@Override
-				public Result perform(FirewallContext context, HttpServletRequest request) {
+				public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
 					return request.getDispatcherType() == dispatcherType
-						? Result.MATCH
-						: Result.NO_MATCH;
+						? Matcher.Result.MATCH
+						: Matcher.Result.NO_MATCH;
 				}
 			}
 
@@ -465,7 +581,7 @@ public class Matchers {
 			public static Matcher is(final DispatcherType dispatcherType, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						return doMatches(request.getDispatcherType() == dispatcherType, context, rules);
 					}
 				};
@@ -480,7 +596,7 @@ public class Matchers {
 			public static Matcher is(final DispatcherType dispatcherType, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						return doMatches(request.getDispatcherType() == dispatcherType, context, rules, otherwise);
 					}
 				};
@@ -513,12 +629,12 @@ public class Matchers {
 			public static Matcher in(final Iterable<? extends DispatcherType> dispatcherTypes) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
 						DispatcherType type = request.getDispatcherType();
 						for(DispatcherType dispatcherType : dispatcherTypes) {
-							if(dispatcherType == type) return Result.MATCH;
+							if(dispatcherType == type) return Matcher.Result.MATCH;
 						}
-						return Result.NO_MATCH;
+						return Matcher.Result.NO_MATCH;
 					}
 				};
 			}
@@ -529,10 +645,10 @@ public class Matchers {
 			public static Matcher in(final EnumSet<? extends DispatcherType> dispatcherTypes) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
 						return dispatcherTypes.contains(request.getDispatcherType())
-							? Result.MATCH
-							: Result.NO_MATCH;
+							? Matcher.Result.MATCH
+							: Matcher.Result.NO_MATCH;
 					}
 				};
 			}
@@ -554,7 +670,7 @@ public class Matchers {
 			public static Matcher in(final Iterable<? extends DispatcherType> dispatcherTypes, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						boolean matches = false;
 						DispatcherType type = request.getDispatcherType();
 						for(DispatcherType dispatcherType : dispatcherTypes) {
@@ -577,7 +693,7 @@ public class Matchers {
 			public static Matcher in(final Iterable<? extends DispatcherType> dispatcherTypes, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						boolean matches = false;
 						DispatcherType type = request.getDispatcherType();
 						for(DispatcherType dispatcherType : dispatcherTypes) {
@@ -599,7 +715,7 @@ public class Matchers {
 			public static Matcher in(final EnumSet<? extends DispatcherType> dispatcherTypes, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						return doMatches(dispatcherTypes.contains(request.getDispatcherType()), context, rules);
 					}
 				};
@@ -614,7 +730,7 @@ public class Matchers {
 			public static Matcher in(final EnumSet<? extends DispatcherType> dispatcherTypes, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						return doMatches(dispatcherTypes.contains(request.getDispatcherType()), context, rules, otherwise);
 					}
 				};
@@ -930,33 +1046,13 @@ public class Matchers {
 		}
 		// </editor-fold>
 
-		// TODO: getLocalAddr/getLocalName/getLocalPort
-
-		// TODO: getLocale(s)
-
-		// TODO: Parameters
-
-		// TODO: getProtocol
-
-		// TODO: getRemoteAddr/getRemoteHost/getRemotePort
-
-		// TODO: getRequestDispatcher?
-
-		// TODO: getScheme
-
-		// TODO: getServerName/getServerPort
-
-		// TODO: isAsyncStarted/Supported?
-
-		// TODO: isSecure?
-
 		// </editor-fold>
 
 		// <editor-fold defaultstate="collapsed" desc="HttpServletRequest">
 
 		// <editor-fold defaultstate="collapsed" desc="authType">
 		/**
-		 * TODO: Support nulls?
+		 * TODO: Support nulls or a method for noAuthType?
 		 *
 		 * @see  HttpServletRequest#getAuthType()
 		 */
@@ -970,11 +1066,11 @@ public class Matchers {
 					this.authType = authType;
 				}
 				@Override
-				public Result perform(FirewallContext context, HttpServletRequest request) {
+				public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
 					String type = request.getAuthType();
 					return type != null && type.equals(authType)
-						? Result.MATCH
-						: Result.NO_MATCH;
+						? Matcher.Result.MATCH
+						: Matcher.Result.NO_MATCH;
 				}
 			}
 
@@ -997,7 +1093,7 @@ public class Matchers {
 			public static Matcher is(final String authType, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						String type = request.getAuthType();
 						return doMatches(type != null && type.equals(authType), context, rules);
 					}
@@ -1013,7 +1109,7 @@ public class Matchers {
 			public static Matcher is(final String authType, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						String type = request.getAuthType();
 						return doMatches(type != null && type.equals(authType), context, rules, otherwise);
 					}
@@ -1047,14 +1143,14 @@ public class Matchers {
 			public static Matcher in(final Iterable<? extends String> authTypes) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
 						String type = request.getAuthType();
 						if(type != null) {
 							for(String authType : authTypes) {
-								if(type.equals(authType)) return Result.MATCH;
+								if(type.equals(authType)) return Matcher.Result.MATCH;
 							}
 						}
-						return Result.NO_MATCH;
+						return Matcher.Result.NO_MATCH;
 					}
 				};
 			}
@@ -1065,11 +1161,11 @@ public class Matchers {
 			public static Matcher in(final Collection<? extends String> authTypes) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
 						String type = request.getAuthType();
 						return type != null && authTypes.contains(type)
-							? Result.MATCH
-							: Result.NO_MATCH;
+							? Matcher.Result.MATCH
+							: Matcher.Result.NO_MATCH;
 					}
 				};
 			}
@@ -1091,7 +1187,7 @@ public class Matchers {
 			public static Matcher in(final Iterable<? extends String> authTypes, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						boolean matches = false;
 						String type = request.getAuthType();
 						if(type != null) {
@@ -1116,7 +1212,7 @@ public class Matchers {
 			public static Matcher in(final Iterable<? extends String> authTypes, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						boolean matches = false;
 						String type = request.getAuthType();
 						if(type != null) {
@@ -1140,7 +1236,7 @@ public class Matchers {
 			public static Matcher in(final Collection<? extends String> authTypes, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						String type = request.getAuthType();
 						return doMatches(type != null && authTypes.contains(type), context, rules);
 					}
@@ -1156,7 +1252,7 @@ public class Matchers {
 			public static Matcher in(final Collection<? extends String> authTypes, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						String type = request.getAuthType();
 						return doMatches(type != null && authTypes.contains(type), context, rules, otherwise);
 					}
@@ -1429,8 +1525,6 @@ public class Matchers {
 		}
 		// </editor-fold>
 
-		// TODO: getContextPath?
-
 		// TODO: Cookies?
 
 		// TODO: Headers?
@@ -1449,10 +1543,10 @@ public class Matchers {
 					this.method = method;
 				}
 				@Override
-				public Result perform(FirewallContext context, HttpServletRequest request) {
+				public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
 					return request.getMethod().equals(method)
-						? Result.MATCH
-						: Result.NO_MATCH;
+						? Matcher.Result.MATCH
+						: Matcher.Result.NO_MATCH;
 				}
 			}
 
@@ -1478,7 +1572,7 @@ public class Matchers {
 			public static Matcher is(final String method, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						return doMatches(request.getMethod().equals(method), context, rules);
 					}
 				};
@@ -1493,7 +1587,7 @@ public class Matchers {
 			public static Matcher is(final String method, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						return doMatches(request.getMethod().equals(method), context, rules, otherwise);
 					}
 				};
@@ -1526,12 +1620,12 @@ public class Matchers {
 			public static Matcher in(final Iterable<? extends String> methods) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
 						String m = request.getMethod();
 						for(String method : methods) {
-							if(m.equals(method)) return Result.MATCH;
+							if(m.equals(method)) return Matcher.Result.MATCH;
 						}
-						return Result.NO_MATCH;
+						return Matcher.Result.NO_MATCH;
 					}
 				};
 			}
@@ -1542,10 +1636,10 @@ public class Matchers {
 			public static Matcher in(final Collection<? extends String> methods) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
 						return methods.contains(request.getMethod())
-							? Result.MATCH
-							: Result.NO_MATCH;
+							? Matcher.Result.MATCH
+							: Matcher.Result.NO_MATCH;
 					}
 				};
 			}
@@ -1567,7 +1661,7 @@ public class Matchers {
 			public static Matcher in(final Iterable<? extends String> methods, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						boolean matches = false;
 						String m = request.getMethod();
 						for(String method : methods) {
@@ -1590,7 +1684,7 @@ public class Matchers {
 			public static Matcher in(final Iterable<? extends String> methods, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						boolean matches = false;
 						String m = request.getMethod();
 						for(String method : methods) {
@@ -1612,7 +1706,7 @@ public class Matchers {
 			public static Matcher in(final Collection<? extends String> methods, final Iterable<? extends Rule> rules) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						return doMatches(methods.contains(request.getMethod()), context, rules);
 					}
 				};
@@ -1627,7 +1721,7 @@ public class Matchers {
 			public static Matcher in(final Collection<? extends String> methods, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
 				return new Matcher() {
 					@Override
-					public Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
+					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
 						return doMatches(methods.contains(request.getMethod()), context, rules, otherwise);
 					}
 				};
@@ -2031,37 +2125,498 @@ public class Matchers {
 		}
 		// </editor-fold>
 
-		// TODO: Part (to block/require file uploads) - See ao-servlet-filters for helpful upload handler
-
 		// TODO: pathInfo?
 
 		// TODO: pathTranslated?
 
+		// TODO: getContextPath?
+
 		// TODO: queryString?
 
-		// TODO: RemoteUser
-
-		// TODO: RequestURI?
-
-		// TODO: RequestURL?
-
-		// TODO: getServletPath? (this is provided already)
-
-		// TODO: Session stuff (with potential to set in non-terminating action)?
-
-		// TODO: UserPrincipal
+		// TODO: getRemoteUser?
 
 		// TODO: isUserInRole
 
-		// TODO: For actions: logout()?
+		// TODO: getUserPrincipal
+
+		// TODO: getRequestURI?
+
+		// TODO: getRequestURL?
+
+		// TODO: getServletPath? (and other things like getting forward path, include path, ...)  Combined path with pathInfo
+
+		// TODO: Session stuff (with potential to set in non-terminating action)?
+		//     TODO: getRequestedSessionId
+		//     TODO: getSession
+		//     TODO: isRequestedSessionIdValid
+		//     TODO: isRequestedSessionIdFromCookie
+		//     TODO: isRequestedSessionIdFromURL
+
+		// TODO: authenticate?
+
+		// TODO: login?
+
+		/**
+		 * @see  HttpServletRequest#logout()
+		 *
+		 * @return  {@link Action.Result#CONTINUE} always
+		 */
+		public static final Action logout = new Action() {
+			@Override
+			public Action.Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException {
+				request.logout();
+				return Action.Result.CONTINUE;
+			}
+		};
+
+		// TODO: Parts?
+		//     TODO: Part (to block/require file uploads) - See ao-servlet-filters for helpful upload handler
 
 		// </editor-fold>
 	}
 	// </editor-fold>
 
-	// TODO: Cookies?
+	// <editor-fold defaultstate="collapsed" desc="response">
+	/**
+	 * @see  ServletResponse
+	 * @see  HttpServletResponse
+	 */
+	public static class response {
 
-	// TODO: HttpSession?
+		private response() {}
+
+		// <editor-fold defaultstate="collapsed" desc="ServletResponse">
+
+		// TODO: getCharacterEncoding?
+		// TODO: setCharacterEncoding?
+
+		// TODO: getContentType?
+		// TODO: setContentType?
+
+		// TODO: setContentLength?
+
+		// TODO: getBufferSize?
+		// TODO: setBufferSize?
+		// TODO: flushBuffer?
+		// TODO: resetBuffer?
+
+		// TODO: isCommitted?
+
+		// TODO: reset?
+
+		// TODO: getLocale?
+		// TODO: setLocale?
+
+		// </editor-fold>
+
+		// <editor-fold defaultstate="collapsed" desc="HttpServletResponse">
+
+		// TODO: addCookie?
+
+		// TODO: headers
+
+		// TODO: encodeURL/encodeRedirectURL?
+
+		// TODO: getStatus
+		// TODO: setStatus
+
+		/**
+		 * @see  HttpServletResponse#sendError(int)
+		 */
+		public static class sendError {
+
+			private sendError() {}
+
+			/**
+			 * Sends the provided HTTP status code.
+			 *
+			 * @see  HttpServletResponse#sendError(int)
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			private static class SendError implements Action {
+				private final int sc;
+				private SendError(int sc) {
+					this.sc = sc;
+				}
+				@Override
+				public Action.Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException {
+					response.sendError(sc);
+					return Action.Result.TERMINATE;
+				}
+			}
+
+			/**
+			 * Sends the provided HTTP status code.
+			 *
+			 * @see  HttpServletResponse#sendError(int)
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action sendError(int sc) {
+				switch(sc) {
+					case HttpServletResponse.SC_CONTINUE : return CONTINUE;
+					case HttpServletResponse.SC_SWITCHING_PROTOCOLS : return SWITCHING_PROTOCOLS;
+					case HttpServletResponse.SC_OK : return OK;
+					case HttpServletResponse.SC_CREATED : return CREATED;
+					case HttpServletResponse.SC_ACCEPTED : return ACCEPTED;
+					case HttpServletResponse.SC_NON_AUTHORITATIVE_INFORMATION : return NON_AUTHORITATIVE_INFORMATION;
+					case HttpServletResponse.SC_NO_CONTENT : return NO_CONTENT;
+					case HttpServletResponse.SC_RESET_CONTENT : return RESET_CONTENT;
+					case HttpServletResponse.SC_PARTIAL_CONTENT : return PARTIAL_CONTENT;
+					case HttpServletResponse.SC_MULTIPLE_CHOICES : return MULTIPLE_CHOICES;
+					case HttpServletResponse.SC_MOVED_PERMANENTLY : return MOVED_PERMANENTLY;
+					// Duplicate with SC_FOUND: case HttpServletResponse.SC_MOVED_TEMPORARILY : return MOVED_TEMPORARILY;
+					case HttpServletResponse.SC_FOUND : return FOUND;
+					case HttpServletResponse.SC_SEE_OTHER : return SEE_OTHER;
+					case HttpServletResponse.SC_NOT_MODIFIED : return NOT_MODIFIED;
+					case HttpServletResponse.SC_USE_PROXY : return USE_PROXY;
+					case HttpServletResponse.SC_TEMPORARY_REDIRECT : return TEMPORARY_REDIRECT;
+					case HttpServletResponse.SC_BAD_REQUEST : return BAD_REQUEST;
+					case HttpServletResponse.SC_UNAUTHORIZED : return UNAUTHORIZED;
+					case HttpServletResponse.SC_PAYMENT_REQUIRED : return PAYMENT_REQUIRED;
+					case HttpServletResponse.SC_FORBIDDEN : return FORBIDDEN;
+					case HttpServletResponse.SC_NOT_FOUND : return NOT_FOUND;
+					case HttpServletResponse.SC_METHOD_NOT_ALLOWED : return METHOD_NOT_ALLOWED;
+					case HttpServletResponse.SC_NOT_ACCEPTABLE : return NOT_ACCEPTABLE;
+					case HttpServletResponse.SC_PROXY_AUTHENTICATION_REQUIRED : return PROXY_AUTHENTICATION_REQUIRED;
+					case HttpServletResponse.SC_REQUEST_TIMEOUT : return REQUEST_TIMEOUT;
+					case HttpServletResponse.SC_CONFLICT : return CONFLICT;
+					case HttpServletResponse.SC_GONE : return GONE;
+					case HttpServletResponse.SC_LENGTH_REQUIRED : return LENGTH_REQUIRED;
+					case HttpServletResponse.SC_PRECONDITION_FAILED : return PRECONDITION_FAILED;
+					case HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE : return REQUEST_ENTITY_TOO_LARGE;
+					case HttpServletResponse.SC_REQUEST_URI_TOO_LONG : return REQUEST_URI_TOO_LONG;
+					case HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE : return UNSUPPORTED_MEDIA_TYPE;
+					case HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE : return REQUESTED_RANGE_NOT_SATISFIABLE;
+					case HttpServletResponse.SC_EXPECTATION_FAILED : return EXPECTATION_FAILED;
+					case HttpServletResponse.SC_INTERNAL_SERVER_ERROR : return INTERNAL_SERVER_ERROR;
+					case HttpServletResponse.SC_NOT_IMPLEMENTED : return NOT_IMPLEMENTED;
+					case HttpServletResponse.SC_BAD_GATEWAY : return BAD_GATEWAY;
+					case HttpServletResponse.SC_SERVICE_UNAVAILABLE : return SERVICE_UNAVAILABLE;
+					case HttpServletResponse.SC_GATEWAY_TIMEOUT : return GATEWAY_TIMEOUT;
+					case HttpServletResponse.SC_HTTP_VERSION_NOT_SUPPORTED : return HTTP_VERSION_NOT_SUPPORTED;
+					default : return new SendError(sc); // Other or future status codes
+				}
+			}
+
+			/**
+			 * Sends the provided HTTP status code and provided message.
+			 *
+			 * @see  HttpServletResponse#sendError(int, java.lang.String)
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action sendError(final int sc, final String message) {
+				return new Action() {
+					@Override
+					public Action.Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException {
+						response.sendError(sc, message);
+						return Action.Result.TERMINATE;
+					}
+				};
+			}
+
+			/**
+			 * @see  HttpServletResponse#SC_CONTINUE
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action CONTINUE = new SendError(HttpServletResponse.SC_CONTINUE);
+
+			/**
+			 * @see  HttpServletResponse#SC_SWITCHING_PROTOCOLS
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action SWITCHING_PROTOCOLS = new SendError(HttpServletResponse.SC_SWITCHING_PROTOCOLS);
+
+			/**
+			 * @see  HttpServletResponse#SC_OK
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action OK = new SendError(HttpServletResponse.SC_OK);
+
+			/**
+			 * @see  HttpServletResponse#SC_CREATED
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action CREATED = new SendError(HttpServletResponse.SC_CREATED);
+
+			/**
+			 * @see  HttpServletResponse#SC_ACCEPTED
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action ACCEPTED = new SendError(HttpServletResponse.SC_ACCEPTED);
+
+			/**
+			 * @see  HttpServletResponse#SC_NON_AUTHORITATIVE_INFORMATION
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action NON_AUTHORITATIVE_INFORMATION = new SendError(HttpServletResponse.SC_NON_AUTHORITATIVE_INFORMATION);
+
+			/**
+			 * @see  HttpServletResponse#SC_NO_CONTENT
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action NO_CONTENT = new SendError(HttpServletResponse.SC_NO_CONTENT);
+
+			/**
+			 * @see  HttpServletResponse#SC_RESET_CONTENT
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action RESET_CONTENT = new SendError(HttpServletResponse.SC_RESET_CONTENT);
+
+			/**
+			 * @see  HttpServletResponse#SC_PARTIAL_CONTENT
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action PARTIAL_CONTENT = new SendError(HttpServletResponse.SC_PARTIAL_CONTENT);
+
+			/**
+			 * @see  HttpServletResponse#SC_MULTIPLE_CHOICES
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action MULTIPLE_CHOICES = new SendError(HttpServletResponse.SC_MULTIPLE_CHOICES);
+
+			/**
+			 * @see  HttpServletResponse#SC_MOVED_PERMANENTLY
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action MOVED_PERMANENTLY = new SendError(HttpServletResponse.SC_MOVED_PERMANENTLY);
+
+			/**
+			 * @see  HttpServletResponse#SC_FOUND
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action FOUND = new SendError(HttpServletResponse.SC_FOUND);
+
+			/**
+			 * @see  HttpServletResponse#SC_MOVED_TEMPORARILY
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 *
+			 * @deprecated  Please use {@link #FOUND}
+			 */
+			@Deprecated
+			public static final Action MOVED_TEMPORARILY = FOUND;
+
+			/**
+			 * @see  HttpServletResponse#SC_SEE_OTHER
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action SEE_OTHER = new SendError(HttpServletResponse.SC_SEE_OTHER);
+
+			/**
+			 * @see  HttpServletResponse#SC_NOT_MODIFIED
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action NOT_MODIFIED = new SendError(HttpServletResponse.SC_NOT_MODIFIED);
+
+			/**
+			 * @see  HttpServletResponse#SC_USE_PROXY
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action USE_PROXY = new SendError(HttpServletResponse.SC_USE_PROXY);
+
+			/**
+			 * @see  HttpServletResponse#SC_TEMPORARY_REDIRECT
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action TEMPORARY_REDIRECT = new SendError(HttpServletResponse.SC_TEMPORARY_REDIRECT);
+
+			/**
+			 * @see  HttpServletResponse#SC_BAD_REQUEST
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action BAD_REQUEST = new SendError(HttpServletResponse.SC_BAD_REQUEST);
+
+			/**
+			 * @see  HttpServletResponse#SC_UNAUTHORIZED
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action UNAUTHORIZED = new SendError(HttpServletResponse.SC_UNAUTHORIZED);
+
+			/**
+			 * @see  HttpServletResponse#SC_PAYMENT_REQUIRED
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action PAYMENT_REQUIRED = new SendError(HttpServletResponse.SC_PAYMENT_REQUIRED);
+
+			/**
+			 * @see  HttpServletResponse#SC_FORBIDDEN
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action FORBIDDEN = new SendError(HttpServletResponse.SC_FORBIDDEN);
+
+			/**
+			 * @see  HttpServletResponse#SC_NOT_FOUND
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action NOT_FOUND = new SendError(HttpServletResponse.SC_NOT_FOUND);
+
+			/**
+			 * @see  HttpServletResponse#SC_METHOD_NOT_ALLOWED
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action METHOD_NOT_ALLOWED = new SendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+
+			/**
+			 * @see  HttpServletResponse#SC_NOT_ACCEPTABLE
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action NOT_ACCEPTABLE = new SendError(HttpServletResponse.SC_NOT_ACCEPTABLE);
+
+			/**
+			 * @see  HttpServletResponse#SC_PROXY_AUTHENTICATION_REQUIRED
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action PROXY_AUTHENTICATION_REQUIRED = new SendError(HttpServletResponse.SC_PROXY_AUTHENTICATION_REQUIRED);
+
+			/**
+			 * @see  HttpServletResponse#SC_REQUEST_TIMEOUT
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action REQUEST_TIMEOUT = new SendError(HttpServletResponse.SC_REQUEST_TIMEOUT);
+
+			/**
+			 * @see  HttpServletResponse#SC_CONFLICT
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action CONFLICT = new SendError(HttpServletResponse.SC_CONFLICT);
+
+			/**
+			 * @see  HttpServletResponse#SC_GONE
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action GONE = new SendError(HttpServletResponse.SC_GONE);
+
+			/**
+			 * @see  HttpServletResponse#SC_LENGTH_REQUIRED
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action LENGTH_REQUIRED = new SendError(HttpServletResponse.SC_LENGTH_REQUIRED);
+
+			/**
+			 * @see  HttpServletResponse#SC_PRECONDITION_FAILED
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action PRECONDITION_FAILED = new SendError(HttpServletResponse.SC_PRECONDITION_FAILED);
+
+			/**
+			 * @see  HttpServletResponse#SC_REQUEST_ENTITY_TOO_LARGE
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action REQUEST_ENTITY_TOO_LARGE = new SendError(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
+
+			/**
+			 * @see  HttpServletResponse#SC_REQUEST_URI_TOO_LONG
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action REQUEST_URI_TOO_LONG = new SendError(HttpServletResponse.SC_REQUEST_URI_TOO_LONG);
+
+			/**
+			 * @see  HttpServletResponse#SC_UNSUPPORTED_MEDIA_TYPE
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action UNSUPPORTED_MEDIA_TYPE = new SendError(HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE);
+
+			/**
+			 * @see  HttpServletResponse#SC_REQUESTED_RANGE_NOT_SATISFIABLE
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action REQUESTED_RANGE_NOT_SATISFIABLE = new SendError(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
+
+			/**
+			 * @see  HttpServletResponse#SC_EXPECTATION_FAILED
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action EXPECTATION_FAILED = new SendError(HttpServletResponse.SC_EXPECTATION_FAILED);
+
+			/**
+			 * @see  HttpServletResponse#SC_INTERNAL_SERVER_ERROR
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action INTERNAL_SERVER_ERROR = new SendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+
+			/**
+			 * @see  HttpServletResponse#SC_NOT_IMPLEMENTED
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action NOT_IMPLEMENTED = new SendError(HttpServletResponse.SC_NOT_IMPLEMENTED);
+
+			/**
+			 * @see  HttpServletResponse#SC_BAD_GATEWAY
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action BAD_GATEWAY = new SendError(HttpServletResponse.SC_BAD_GATEWAY);
+
+			/**
+			 * @see  HttpServletResponse#SC_SERVICE_UNAVAILABLE
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action SERVICE_UNAVAILABLE = new SendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+
+			/**
+			 * @see  HttpServletResponse#SC_GATEWAY_TIMEOUT
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action GATEWAY_TIMEOUT = new SendError(HttpServletResponse.SC_GATEWAY_TIMEOUT);
+
+			/**
+			 * @see  HttpServletResponse#SC_HTTP_VERSION_NOT_SUPPORTED
+			 *
+			 * @return  {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action HTTP_VERSION_NOT_SUPPORTED = new SendError(HttpServletResponse.SC_HTTP_VERSION_NOT_SUPPORTED);
+		}
+
+		// TODO: sendRedirect
+
+		// </editor-fold>
+	}
+	// </editor-fold>
+
+	// TODO: Cookies outside request/response?
+
+	// TODO: Session outwise request/response?
 
 	// TODO: javax.servlet.descriptor package?
 
