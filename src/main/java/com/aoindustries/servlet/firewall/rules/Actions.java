@@ -22,7 +22,9 @@
  */
 package com.aoindustries.servlet.firewall.rules;
 
-import com.aoindustries.servlet.firewall.rules.Action.Result;
+import com.aoindustries.servlet.firewall.api.Action;
+import com.aoindustries.servlet.firewall.api.Action.Result;
+import com.aoindustries.servlet.firewall.api.FirewallContext;
 import java.io.IOException;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletContext;

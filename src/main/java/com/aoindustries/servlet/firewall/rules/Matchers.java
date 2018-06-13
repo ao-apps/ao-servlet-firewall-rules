@@ -24,7 +24,11 @@ package com.aoindustries.servlet.firewall.rules;
 
 import com.aoindustries.net.Path;
 import com.aoindustries.net.pathspace.PathSpace.PathMatch;
-import com.aoindustries.servlet.firewall.rules.Matcher.Result;
+import com.aoindustries.servlet.firewall.api.Action;
+import com.aoindustries.servlet.firewall.api.FirewallContext;
+import com.aoindustries.servlet.firewall.api.Matcher;
+import com.aoindustries.servlet.firewall.api.Matcher.Result;
+import com.aoindustries.servlet.firewall.api.Rule;
 import com.aoindustries.servlet.http.ServletUtil;
 import com.aoindustries.util.AoCollections;
 import com.aoindustries.util.WildcardPatternMatcher;
