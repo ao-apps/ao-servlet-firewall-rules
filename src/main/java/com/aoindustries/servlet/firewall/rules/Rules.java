@@ -75,7 +75,7 @@ public class Rules {
 	/**
 	 * Matches none.
 	 *
-	 * @return  {@link Matcher.Result#NO_MATCH} always
+	 * @return  Returns {@link Matcher.Result#NO_MATCH} always
 	 *
 	 * @see  #or(java.lang.Iterable)
 	 * @see  #or(com.aoindustries.servlet.firewall.rules.Rule[])
@@ -86,6 +86,64 @@ public class Rules {
 		public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
 			return Matcher.Result.NO_MATCH;
 		}
+	};
+
+	/**
+	 * Matches none.  This is useful to temporarily replace another rule with a
+	 * non-matching rule.
+	 *
+	 * @param  rules  The rules are never called.
+	 *
+	 * @return  Returns {@link #none} always
+	 *
+	 * @see  #none
+	 */
+	public static Matcher none(Iterable<? extends Rule> rules) {
+		return none;
+	};
+
+	/**
+	 * Matches none.  This is useful to temporarily replace another rule with a
+	 * non-matching rule.
+	 *
+	 * @param  rules  The rules are never called.
+	 * @param  otherwise  The rules are never called.
+	 *
+	 * @return  Returns {@link #none} always
+	 *
+	 * @see  #none
+	 */
+	public static Matcher none(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+		return none;
+	};
+
+	/**
+	 * Matches none.  This is useful to temporarily replace another rule with a
+	 * non-matching rule.
+	 *
+	 * @param  rules  The rules are never called.
+	 *
+	 * @return  Returns {@link #none} always
+	 *
+	 * @see  #none
+	 */
+	public static Matcher none(Rule ... rules) {
+		return none;
+	};
+
+	/**
+	 * Matches none.  This is useful to temporarily replace another rule with a
+	 * non-matching rule.
+	 *
+	 * @param  rules  The rules are never called.
+	 * @param  otherwise  The rules are never called.
+	 *
+	 * @return  Returns {@link #none} always
+	 *
+	 * @see  #none
+	 */
+	public static Matcher none(Rule[] rules, Rule ... otherwise) {
+		return none;
 	};
 
 	/**
@@ -2644,4 +2702,8 @@ public class Rules {
 	// TODO: javax.servlet.descriptor package?
 
 	// TODO: AO-include/forward args?
+
+	static {
+		Rules.none
+	}
 }
