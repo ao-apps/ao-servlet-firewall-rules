@@ -80,6 +80,7 @@ public class Rules {
 	 * @see  #any(java.lang.Iterable)
 	 * @see  #any(com.aoindustries.servlet.firewall.rules.Rule...)
 	 */
+	// TODO: Rename NO_MATCH?
 	public static final Matcher none = new Matcher() {
 		@Override
 		public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
@@ -92,6 +93,8 @@ public class Rules {
 	 *
 	 * @return  {@link Matcher.Result#MATCH} always
 	 */
+	// TODO: Rename MATCH?
+	// TODO: Java 1.8+ for all ao-servlet-firewall, for lots of Lambda reductions here?
 	public static final Matcher all = new Matcher() {
 		@Override
 		public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
@@ -106,6 +109,7 @@ public class Rules {
 	 *
 	 * @return  {@link Matcher.Result#MATCH} when rules is empty
 	 */
+	// TODO: Rename "and"?
 	public static Matcher all(final Iterable<? extends Rule> rules) {
 		return new Matcher() {
 			@Override
@@ -195,11 +199,30 @@ public class Rules {
 		};
 	}
 
+	/**
+	 * Matches when all matchers match.
+	 * Stops processing {@code rules} (both matchers and actions) when the first matcher does not match.
+	 * Performs any actions while processing rules, up to the point stopped on first non-matching matcher.
+	 *
+	 * @return  {@link Matcher.Result#MATCH} when rules is empty
+	 */
+	// TODO: Is "all" the best name for this?  Maybe "and" / "or" instead of "all" / "any"?
+	//       This is because it might be expected that all rules will be invoked, not as a matcher.
+	//       Then "all" could be created that simply calls all rules, useful inside "and" / "or" to not terminate?
 	public static Matcher all(Rule ... rules) {
 		if(rules.length == 0) return all;
 		return all(Arrays.asList(rules));
 	}
 
+	/**
+	 * Matches when all matchers match.
+	 * Stops processing {@code rules} (both matchers and actions) when the first matcher does not match.
+	 * Performs any actions while processing rules, up to the point stopped on first non-matching matcher.
+	 *
+	 * @param  otherwise  Performs all {@code otherwise} rules only when a matcher in {@code matches} does not match.
+	 *
+	 * @return  {@link Matcher.Result#MATCH} when rules is empty
+	 */
 	public static Matcher all(Rule[] rules, Rule ... otherwise) {
 		if(otherwise.length == 0) return all(rules);
 		return all(Arrays.asList(rules), Arrays.asList(otherwise));
