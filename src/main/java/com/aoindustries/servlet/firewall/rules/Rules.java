@@ -34,8 +34,11 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.Set;
 import javax.servlet.DispatcherType;
 import javax.servlet.FilterChain;
+import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
@@ -1697,6 +1700,18 @@ public class Rules {
 
 			private method() {}
 
+			/**
+			 * Constants for directly supported request methods.
+			 */
+			public static final String
+				DELETE = "DELETE",
+				HEAD = "HEAD",
+				GET = "GET",
+				OPTIONS = "OPTIONS",
+				POST = "POST",
+				PUT = "PUT",
+				TRACE = "TRACE";
+
 			private static class Is implements Matcher {
 				private final String method;
 				private Is(String method) {
@@ -1714,13 +1729,13 @@ public class Rules {
 			 * Matches one given {@link HttpServletRequest#getMethod()}.
 			 */
 			public static Matcher is(String method) {
-				if(ServletUtil.METHOD_DELETE .equals(method)) return isDelete;
-				if(ServletUtil.METHOD_HEAD   .equals(method)) return isHead;
-				if(ServletUtil.METHOD_GET    .equals(method)) return isGet;
-				if(ServletUtil.METHOD_OPTIONS.equals(method)) return isOptions;
-				if(ServletUtil.METHOD_POST   .equals(method)) return isPost;
-				if(ServletUtil.METHOD_PUT    .equals(method)) return isPut;
-				if(ServletUtil.METHOD_TRACE  .equals(method)) return isTrace;
+				if(DELETE .equals(method)) return isDelete;
+				if(HEAD   .equals(method)) return isHead;
+				if(GET    .equals(method)) return isGet;
+				if(OPTIONS.equals(method)) return isOptions;
+				if(POST   .equals(method)) return isPost;
+				if(PUT    .equals(method)) return isPut;
+				if(TRACE  .equals(method)) return isTrace;
 				return new Is(method); // For any other methods
 			}
 
@@ -1983,7 +1998,7 @@ public class Rules {
 			/**
 			 * Matches {@link ServletUtil#METHOD_DELETE}.
 			 */
-			public static final Matcher isDelete = new Is(ServletUtil.METHOD_DELETE);
+			public static final Matcher isDelete = new Is(DELETE);
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_DELETE}.
@@ -1991,7 +2006,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isDelete(Iterable<? extends Rule> rules) {
-				return is(ServletUtil.METHOD_DELETE, rules);
+				return is(DELETE, rules);
 			}
 
 			/**
@@ -2001,7 +2016,7 @@ public class Rules {
 			 * @param  otherwise  Invoked only when not matched.
 			 */
 			public static Matcher isDelete(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
-				return is(ServletUtil.METHOD_DELETE, rules, otherwise);
+				return is(DELETE, rules, otherwise);
 			}
 
 			/**
@@ -2010,7 +2025,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isDelete(Rule ... rules) {
-				return is(ServletUtil.METHOD_DELETE, rules);
+				return is(DELETE, rules);
 			}
 
 			/**
@@ -2021,13 +2036,13 @@ public class Rules {
 			 */
 			public static Matcher isDelete(Rule[] rules, Rule ... otherwise) {
 				if(otherwise.length == 0) return isDelete(rules);
-				return is(ServletUtil.METHOD_DELETE, rules, otherwise);
+				return is(DELETE, rules, otherwise);
 			}
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_HEAD}.
 			 */
-			public static final Matcher isHead = new Is(ServletUtil.METHOD_HEAD);
+			public static final Matcher isHead = new Is(HEAD);
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_HEAD}.
@@ -2035,7 +2050,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isHead(Iterable<? extends Rule> rules) {
-				return is(ServletUtil.METHOD_HEAD, rules);
+				return is(HEAD, rules);
 			}
 
 			/**
@@ -2045,7 +2060,7 @@ public class Rules {
 			 * @param  otherwise  Invoked only when not matched.
 			 */
 			public static Matcher isHead(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
-				return is(ServletUtil.METHOD_HEAD, rules, otherwise);
+				return is(HEAD, rules, otherwise);
 			}
 
 			/**
@@ -2054,7 +2069,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isHead(Rule ... rules) {
-				return is(ServletUtil.METHOD_HEAD, rules);
+				return is(HEAD, rules);
 			}
 
 			/**
@@ -2065,13 +2080,13 @@ public class Rules {
 			 */
 			public static Matcher isHead(Rule[] rules, Rule ... otherwise) {
 				if(otherwise.length == 0) return isHead(rules);
-				return is(ServletUtil.METHOD_HEAD, rules, otherwise);
+				return is(HEAD, rules, otherwise);
 			}
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_GET}.
 			 */
-			public static final Matcher isGet = new Is(ServletUtil.METHOD_GET);
+			public static final Matcher isGet = new Is(GET);
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_GET}.
@@ -2079,7 +2094,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isGet(Iterable<? extends Rule> rules) {
-				return is(ServletUtil.METHOD_GET, rules);
+				return is(GET, rules);
 			}
 
 			/**
@@ -2089,7 +2104,7 @@ public class Rules {
 			 * @param  otherwise  Invoked only when not matched.
 			 */
 			public static Matcher isGet(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
-				return is(ServletUtil.METHOD_GET, rules, otherwise);
+				return is(GET, rules, otherwise);
 			}
 
 			/**
@@ -2098,7 +2113,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isGet(Rule ... rules) {
-				return is(ServletUtil.METHOD_GET, rules);
+				return is(GET, rules);
 			}
 
 			/**
@@ -2109,13 +2124,13 @@ public class Rules {
 			 */
 			public static Matcher isGet(Rule[] rules, Rule ... otherwise) {
 				if(otherwise.length == 0) return isGet(rules);
-				return is(ServletUtil.METHOD_GET, rules, otherwise);
+				return is(GET, rules, otherwise);
 			}
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_OPTIONS}.
 			 */
-			public static final Matcher isOptions = new Is(ServletUtil.METHOD_OPTIONS);
+			public static final Matcher isOptions = new Is(OPTIONS);
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_OPTIONS}.
@@ -2123,7 +2138,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isOptions(Iterable<? extends Rule> rules) {
-				return is(ServletUtil.METHOD_OPTIONS, rules);
+				return is(OPTIONS, rules);
 			}
 
 			/**
@@ -2133,7 +2148,7 @@ public class Rules {
 			 * @param  otherwise  Invoked only when not matched.
 			 */
 			public static Matcher isOptions(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
-				return is(ServletUtil.METHOD_OPTIONS, rules, otherwise);
+				return is(OPTIONS, rules, otherwise);
 			}
 
 			/**
@@ -2142,7 +2157,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isOptions(Rule ... rules) {
-				return is(ServletUtil.METHOD_OPTIONS, rules);
+				return is(OPTIONS, rules);
 			}
 
 			/**
@@ -2153,13 +2168,13 @@ public class Rules {
 			 */
 			public static Matcher isOptions(Rule[] rules, Rule ... otherwise) {
 				if(otherwise.length == 0) return isOptions(rules);
-				return is(ServletUtil.METHOD_OPTIONS, rules, otherwise);
+				return is(OPTIONS, rules, otherwise);
 			}
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_POST}.
 			 */
-			public static final Matcher isPost = new Is(ServletUtil.METHOD_POST);
+			public static final Matcher isPost = new Is(POST);
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_POST}.
@@ -2167,7 +2182,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isPost(Iterable<? extends Rule> rules) {
-				return is(ServletUtil.METHOD_POST, rules);
+				return is(POST, rules);
 			}
 
 			/**
@@ -2177,7 +2192,7 @@ public class Rules {
 			 * @param  otherwise  Invoked only when not matched.
 			 */
 			public static Matcher isPost(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
-				return is(ServletUtil.METHOD_POST, rules, otherwise);
+				return is(POST, rules, otherwise);
 			}
 
 			/**
@@ -2186,7 +2201,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isPost(Rule ... rules) {
-				return is(ServletUtil.METHOD_POST, rules);
+				return is(POST, rules);
 			}
 
 			/**
@@ -2197,13 +2212,13 @@ public class Rules {
 			 */
 			public static Matcher isPost(Rule[] rules, Rule ... otherwise) {
 				if(otherwise.length == 0) return isPost(rules);
-				return is(ServletUtil.METHOD_POST, rules, otherwise);
+				return is(POST, rules, otherwise);
 			}
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_PUT}.
 			 */
-			public static final Matcher isPut = new Is(ServletUtil.METHOD_PUT);
+			public static final Matcher isPut = new Is(PUT);
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_PUT}.
@@ -2211,7 +2226,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isPut(Iterable<? extends Rule> rules) {
-				return is(ServletUtil.METHOD_PUT, rules);
+				return is(PUT, rules);
 			}
 
 			/**
@@ -2221,7 +2236,7 @@ public class Rules {
 			 * @param  otherwise  Invoked only when not matched.
 			 */
 			public static Matcher isPut(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
-				return is(ServletUtil.METHOD_PUT, rules, otherwise);
+				return is(PUT, rules, otherwise);
 			}
 
 			/**
@@ -2230,7 +2245,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isPut(Rule ... rules) {
-				return is(ServletUtil.METHOD_PUT, rules);
+				return is(PUT, rules);
 			}
 
 			/**
@@ -2241,13 +2256,13 @@ public class Rules {
 			 */
 			public static Matcher isPut(Rule[] rules, Rule ... otherwise) {
 				if(otherwise.length == 0) return isPut(rules);
-				return is(ServletUtil.METHOD_PUT, rules, otherwise);
+				return is(PUT, rules, otherwise);
 			}
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_TRACE}.
 			 */
-			public static final Matcher isTrace = new Is(ServletUtil.METHOD_TRACE);
+			public static final Matcher isTrace = new Is(TRACE);
 
 			/**
 			 * Matches {@link ServletUtil#METHOD_TRACE}.
@@ -2255,7 +2270,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isTrace(Iterable<? extends Rule> rules) {
-				return is(ServletUtil.METHOD_TRACE, rules);
+				return is(TRACE, rules);
 			}
 
 			/**
@@ -2265,7 +2280,7 @@ public class Rules {
 			 * @param  otherwise  Invoked only when not matched.
 			 */
 			public static Matcher isTrace(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
-				return is(ServletUtil.METHOD_TRACE, rules, otherwise);
+				return is(TRACE, rules, otherwise);
 			}
 
 			/**
@@ -2274,7 +2289,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 */
 			public static Matcher isTrace(Rule ... rules) {
-				return is(ServletUtil.METHOD_TRACE, rules);
+				return is(TRACE, rules);
 			}
 
 			/**
@@ -2285,7 +2300,92 @@ public class Rules {
 			 */
 			public static Matcher isTrace(Rule[] rules, Rule ... otherwise) {
 				if(otherwise.length == 0) return isTrace(rules);
-				return is(ServletUtil.METHOD_TRACE, rules, otherwise);
+				return is(TRACE, rules, otherwise);
+			}
+
+			/**
+			 * Constrains a request to the given set of methods.
+			 * Always includes {@link #OPTIONS}.
+			 * {@link #GET} implies {@link #HEAD}.
+			 * <p>
+			 * TODO: When {@link #OPTIONS} is given in the parameters, should {@link #OPTIONS} still be handled directly by this action?
+			 * Or should it be passed along since not "Constrained"?
+			 * </p>
+			 * <p>
+			 * Responds to the request if is an {@link #OPTIONS} request and stops rules processing.
+			 * See <a href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.2">https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.2</a>
+			 * </p>
+			 * <p>
+			 * Responds with 405 if the request is not one of the given methods, {@link #OPTIONS}, or an implied {@link #HEAD}.
+			 * See <a href="https://tools.ietf.org/html/rfc7231#section-6.5.5">https://tools.ietf.org/html/rfc7231#section-6.5.5</a>.
+			 * </p>
+			 * <p>
+			 * No action is taken when the dispatcher is {@link DispatcherType#INCLUDE}, due to the
+			 * servlet specification making the setting of status codes and headers impossible within
+			 * includes.  See {@link RequestDispatcher#include(javax.servlet.ServletRequest, javax.servlet.ServletResponse)}
+			 * for more details.
+			 * </p>
+			 * <p>
+			 * TODO: Should this only be applied on the {@link DispatcherType#REQUEST} dispatcher instead of just skipping {@link DispatcherType#REQUEST}?
+			 * Should this throw an exception instead of silently taking no action on skipped dispatchers?
+			 * </p>
+			 *
+			 * @return  {@link Action.Result#TERMINATE} if has responded to {@link #OPTIONS} or with 405 status.
+			 *          {@link Action.Result#CONTINUE} if the request method is one of the given methods.
+			 */
+			// TODO: Iterable and Collections versions, too?
+			public static Action constrain(String ... methods) {
+				final Set<String> methodSet = new HashSet<String>();
+				StringBuilder allowSB = new StringBuilder();
+				for(String method : methods) {
+					if(methodSet.add(method)) {
+						if(allowSB.length() > 0) allowSB.append(", ");
+						allowSB.append(method);
+					}
+				}
+				// GET implies HEAD
+				if(methodSet.contains(GET) && methodSet.add(HEAD)) {
+					assert allowSB.length() > 0;
+					allowSB.append(", ").append(HEAD);
+				}
+				// OPTIONS is supported by the action itself
+				if(methodSet.add(OPTIONS)) {
+					if(allowSB.length() > 0) allowSB.append(", ");
+					allowSB.append(", ").append(OPTIONS);
+				}
+				final String allow = allowSB.toString();
+				return new Action() {
+					@Override
+					public Action.Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
+						// Do nothing on includes
+						if(request.getDispatcherType() != DispatcherType.INCLUDE) {
+							String method = request.getMethod();
+							if(OPTIONS.equals(method)) {
+								// Respond to OPTIONS method here
+								response.reset();
+								response.setStatus(HttpServletResponse.SC_OK); // TODO: Probably not required, test
+								response.setHeader("Allow", allow);
+								// TODO: Test if Content-Length 0 is set, or if we still need to set it manually?
+								response.setContentLength(0);
+								response.getOutputStream().close();
+								return Result.TERMINATE;
+							}
+							// Make sure request is of the allowed methods
+							if(!methodSet.contains(method)) {
+								// Respond with 405 Method Not Allowed
+								response.reset();
+								response.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+								// TODO: List of allowed methods required in "Allow" header.  Fix in other places within the AO codebase, too.
+								response.setHeader("Allow", allow);
+								// TODO: Test if Content-Length 0 is set, or if we still need to set it manually?
+								response.setContentLength(0);
+								response.getOutputStream().close();
+								return Result.TERMINATE;
+							}
+						}
+						return Result.CONTINUE;
+					}
+				};
 			}
 		}
 		// </editor-fold>
