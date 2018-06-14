@@ -1704,13 +1704,13 @@ public class Rules {
 			 * Constants for directly supported request methods.
 			 */
 			public static final String
-				DELETE = "DELETE",
-				HEAD = "HEAD",
-				GET = "GET",
+				DELETE  = "DELETE",
+				HEAD    = "HEAD",
+				GET     = "GET",
 				OPTIONS = "OPTIONS",
-				POST = "POST",
-				PUT = "PUT",
-				TRACE = "TRACE";
+				POST    = "POST",
+				PUT     = "PUT",
+				TRACE   = "TRACE";
 
 			private static class Is implements Matcher {
 				private final String method;
@@ -1729,13 +1729,13 @@ public class Rules {
 			 * Matches one given {@link HttpServletRequest#getMethod()}.
 			 */
 			public static Matcher is(String method) {
-				if(DELETE .equals(method)) return isDelete;
-				if(HEAD   .equals(method)) return isHead;
-				if(GET    .equals(method)) return isGet;
-				if(OPTIONS.equals(method)) return isOptions;
-				if(POST   .equals(method)) return isPost;
-				if(PUT    .equals(method)) return isPut;
-				if(TRACE  .equals(method)) return isTrace;
+				if(DELETE .equals(method)) return isDELETE;
+				if(HEAD   .equals(method)) return isHEAD;
+				if(GET    .equals(method)) return isGET;
+				if(OPTIONS.equals(method)) return isOPTIONS;
+				if(POST   .equals(method)) return isPOST;
+				if(PUT    .equals(method)) return isPUT;
+				if(TRACE  .equals(method)) return isTRACE;
 				return new Is(method); // For any other methods
 			}
 
@@ -1996,310 +1996,310 @@ public class Rules {
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_DELETE}.
+			 * Matches {@link #DELETE}.
 			 */
-			public static final Matcher isDelete = new Is(DELETE);
+			public static final Matcher isDELETE = new Is(DELETE);
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_DELETE}.
+			 * Matches {@link #DELETE}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher isDelete(Iterable<? extends Rule> rules) {
+			public static Matcher isDELETE(Iterable<? extends Rule> rules) {
 				return is(DELETE, rules);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_DELETE}.
+			 * Matches {@link #DELETE}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher isDelete(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+			public static Matcher isDELETE(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
 				return is(DELETE, rules, otherwise);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_DELETE}.
+			 * Matches {@link #DELETE}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher isDelete(Rule ... rules) {
+			public static Matcher isDELETE(Rule ... rules) {
 				return is(DELETE, rules);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_DELETE}.
+			 * Matches {@link #DELETE}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher isDelete(Rule[] rules, Rule ... otherwise) {
-				if(otherwise.length == 0) return isDelete(rules);
+			public static Matcher isDELETE(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isDELETE(rules);
 				return is(DELETE, rules, otherwise);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_HEAD}.
+			 * Matches {@link #HEAD}.
 			 */
-			public static final Matcher isHead = new Is(HEAD);
+			public static final Matcher isHEAD = new Is(HEAD);
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_HEAD}.
+			 * Matches {@link #HEAD}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher isHead(Iterable<? extends Rule> rules) {
+			public static Matcher isHEAD(Iterable<? extends Rule> rules) {
 				return is(HEAD, rules);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_HEAD}.
+			 * Matches {@link #HEAD}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher isHead(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+			public static Matcher isHEAD(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
 				return is(HEAD, rules, otherwise);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_HEAD}.
+			 * Matches {@link #HEAD}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher isHead(Rule ... rules) {
+			public static Matcher isHEAD(Rule ... rules) {
 				return is(HEAD, rules);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_HEAD}.
+			 * Matches {@link #HEAD}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher isHead(Rule[] rules, Rule ... otherwise) {
-				if(otherwise.length == 0) return isHead(rules);
+			public static Matcher isHEAD(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isHEAD(rules);
 				return is(HEAD, rules, otherwise);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_GET}.
+			 * Matches {@link #GET}.
 			 */
-			public static final Matcher isGet = new Is(GET);
+			public static final Matcher isGET = new Is(GET);
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_GET}.
+			 * Matches {@link #GET}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher isGet(Iterable<? extends Rule> rules) {
+			public static Matcher isGET(Iterable<? extends Rule> rules) {
 				return is(GET, rules);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_GET}.
+			 * Matches {@link #GET}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher isGet(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+			public static Matcher isGET(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
 				return is(GET, rules, otherwise);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_GET}.
+			 * Matches {@link #GET}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher isGet(Rule ... rules) {
+			public static Matcher isGET(Rule ... rules) {
 				return is(GET, rules);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_GET}.
+			 * Matches {@link #GET}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher isGet(Rule[] rules, Rule ... otherwise) {
-				if(otherwise.length == 0) return isGet(rules);
+			public static Matcher isGET(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isGET(rules);
 				return is(GET, rules, otherwise);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_OPTIONS}.
+			 * Matches {@link #OPTIONS}.
 			 */
-			public static final Matcher isOptions = new Is(OPTIONS);
+			public static final Matcher isOPTIONS = new Is(OPTIONS);
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_OPTIONS}.
+			 * Matches {@link #OPTIONS}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher isOptions(Iterable<? extends Rule> rules) {
+			public static Matcher isOPTIONS(Iterable<? extends Rule> rules) {
 				return is(OPTIONS, rules);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_OPTIONS}.
+			 * Matches {@link #OPTIONS}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher isOptions(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+			public static Matcher isOPTIONS(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
 				return is(OPTIONS, rules, otherwise);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_OPTIONS}.
+			 * Matches {@link #OPTIONS}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher isOptions(Rule ... rules) {
+			public static Matcher isOPTIONS(Rule ... rules) {
 				return is(OPTIONS, rules);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_OPTIONS}.
+			 * Matches {@link #OPTIONS}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher isOptions(Rule[] rules, Rule ... otherwise) {
-				if(otherwise.length == 0) return isOptions(rules);
+			public static Matcher isOPTIONS(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isOPTIONS(rules);
 				return is(OPTIONS, rules, otherwise);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_POST}.
+			 * Matches {@link #POST}.
 			 */
-			public static final Matcher isPost = new Is(POST);
+			public static final Matcher isPOST = new Is(POST);
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_POST}.
+			 * Matches {@link #POST}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher isPost(Iterable<? extends Rule> rules) {
+			public static Matcher isPOST(Iterable<? extends Rule> rules) {
 				return is(POST, rules);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_POST}.
+			 * Matches {@link #POST}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher isPost(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+			public static Matcher isPOST(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
 				return is(POST, rules, otherwise);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_POST}.
+			 * Matches {@link #POST}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher isPost(Rule ... rules) {
+			public static Matcher isPOST(Rule ... rules) {
 				return is(POST, rules);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_POST}.
+			 * Matches {@link #POST}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher isPost(Rule[] rules, Rule ... otherwise) {
-				if(otherwise.length == 0) return isPost(rules);
+			public static Matcher isPOST(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isPOST(rules);
 				return is(POST, rules, otherwise);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_PUT}.
+			 * Matches {@link #PUT}.
 			 */
-			public static final Matcher isPut = new Is(PUT);
+			public static final Matcher isPUT = new Is(PUT);
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_PUT}.
+			 * Matches {@link #PUT}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher isPut(Iterable<? extends Rule> rules) {
+			public static Matcher isPUT(Iterable<? extends Rule> rules) {
 				return is(PUT, rules);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_PUT}.
+			 * Matches {@link #PUT}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher isPut(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+			public static Matcher isPUT(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
 				return is(PUT, rules, otherwise);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_PUT}.
+			 * Matches {@link #PUT}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher isPut(Rule ... rules) {
+			public static Matcher isPUT(Rule ... rules) {
 				return is(PUT, rules);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_PUT}.
+			 * Matches {@link #PUT}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher isPut(Rule[] rules, Rule ... otherwise) {
-				if(otherwise.length == 0) return isPut(rules);
+			public static Matcher isPUT(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isPUT(rules);
 				return is(PUT, rules, otherwise);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_TRACE}.
+			 * Matches {@link #TRACE}.
 			 */
-			public static final Matcher isTrace = new Is(TRACE);
+			public static final Matcher isTRACE = new Is(TRACE);
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_TRACE}.
+			 * Matches {@link #TRACE}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher isTrace(Iterable<? extends Rule> rules) {
+			public static Matcher isTRACE(Iterable<? extends Rule> rules) {
 				return is(TRACE, rules);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_TRACE}.
+			 * Matches {@link #TRACE}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher isTrace(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+			public static Matcher isTRACE(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
 				return is(TRACE, rules, otherwise);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_TRACE}.
+			 * Matches {@link #TRACE}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher isTrace(Rule ... rules) {
+			public static Matcher isTRACE(Rule ... rules) {
 				return is(TRACE, rules);
 			}
 
 			/**
-			 * Matches {@link ServletUtil#METHOD_TRACE}.
+			 * Matches {@link #TRACE}.
 			 *
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher isTrace(Rule[] rules, Rule ... otherwise) {
-				if(otherwise.length == 0) return isTrace(rules);
+			public static Matcher isTRACE(Rule[] rules, Rule ... otherwise) {
+				if(otherwise.length == 0) return isTRACE(rules);
 				return is(TRACE, rules, otherwise);
 			}
 
