@@ -2308,11 +2308,9 @@ public class Rules {
 			 * Always includes {@link #OPTIONS}.
 			 * {@link #GET} implies {@link #HEAD}.
 			 * <p>
-			 * TODO: When {@link #OPTIONS} is given in the parameters, should {@link #OPTIONS} still be handled directly by this action?
-			 * Or should it be passed along since not "Constrained"?
-			 * </p>
-			 * <p>
-			 * Responds to the request if is an {@link #OPTIONS} request and stops rules processing.
+			 * When {@link #OPTIONS} is not in the given set of methods, responds to the request if is the
+			 * {@link #OPTIONS} method and stops rules processing.  {@link #OPTIONS} requests are passed-on
+			 * when included in the set of methods.
 			 * See <a href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.2">https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.2</a>
 			 * </p>
 			 * <p>
@@ -2326,6 +2324,11 @@ public class Rules {
 			 * for more details.
 			 * </p>
 			 * <p>
+			 * TODO: Wrap request/response to convert HEAD to GET here when HEAD implied?
+			 * Redundant with servlet and Spring MVC behavior, but would not hurt and assumes
+			 * less about the underlying resources?
+			 * </p>
+			 * <p>
 			 * TODO: Should this only be applied on the {@link DispatcherType#REQUEST} dispatcher instead of just skipping {@link DispatcherType#REQUEST}?
 			 * Should this throw an exception instead of silently taking no action on skipped dispatchers?
 			 * </p>
@@ -2333,59 +2336,72 @@ public class Rules {
 			 * @return  {@link Action.Result#TERMINATE} if has responded to {@link #OPTIONS} or with 405 status.
 			 *          {@link Action.Result#CONTINUE} if the request method is one of the given methods.
 			 */
-			// TODO: Iterable and Collections versions, too?
-			public static Action constrain(String ... methods) {
-				final Set<String> methodSet = new HashSet<String>();
-				StringBuilder allowSB = new StringBuilder();
-				for(String method : methods) {
-					if(methodSet.add(method)) {
-						if(allowSB.length() > 0) allowSB.append(", ");
-						allowSB.append(method);
-					}
-				}
-				// GET implies HEAD
-				if(methodSet.contains(GET) && methodSet.add(HEAD)) {
-					assert allowSB.length() > 0;
-					allowSB.append(", ").append(HEAD);
-				}
-				// OPTIONS is supported by the action itself
-				if(methodSet.add(OPTIONS)) {
-					if(allowSB.length() > 0) allowSB.append(", ");
-					allowSB.append(", ").append(OPTIONS);
-				}
-				final String allow = allowSB.toString();
+			// TODO: Iterable version, too?
+			public static Action constrain(final Collection<? extends String> methods) {
 				return new Action() {
 					@Override
 					public Action.Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
 						// Do nothing on includes
 						if(request.getDispatcherType() != DispatcherType.INCLUDE) {
 							String method = request.getMethod();
-							if(OPTIONS.equals(method)) {
-								// Respond to OPTIONS method here
-								response.reset();
-								response.setStatus(HttpServletResponse.SC_OK); // TODO: Probably not required, test
-								response.setHeader("Allow", allow);
-								// TODO: Test if Content-Length 0 is set, or if we still need to set it manually?
-								response.setContentLength(0);
-								response.getOutputStream().close();
-								return Result.TERMINATE;
-							}
-							// Make sure request is of the allowed methods
-							if(!methodSet.contains(method)) {
-								// Respond with 405 Method Not Allowed
-								response.reset();
-								response.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-								// TODO: List of allowed methods required in "Allow" header.  Fix in other places within the AO codebase, too.
-								response.setHeader("Allow", allow);
-								// TODO: Test if Content-Length 0 is set, or if we still need to set it manually?
-								response.setContentLength(0);
-								response.getOutputStream().close();
-								return Result.TERMINATE;
+							if(
+								!methods.contains(method)
+								// GET implies HEAD
+								&& !(HEAD.equals(method) && methods.contains(GET))
+							) {
+								// Build the Allow list
+								Set<String> methodSet = new HashSet<String>();
+								StringBuilder allowSB = new StringBuilder();
+								for(String m : methods) {
+									if(methodSet.add(m)) {
+										if(allowSB.length() > 0) allowSB.append(", ");
+										allowSB.append(m);
+									}
+								}
+								// GET implies HEAD
+								if(methodSet.contains(GET) && methodSet.add(HEAD)) {
+									assert allowSB.length() > 0;
+									allowSB.append(", ").append(HEAD);
+								}
+								// OPTIONS is supported by the action itself
+								if(methodSet.add(OPTIONS)) {
+									if(allowSB.length() > 0) allowSB.append(", ");
+									allowSB.append(", ").append(OPTIONS);
+								}
+								final String allow = allowSB.toString();
+								if(OPTIONS.equals(method)) {
+									// Respond to OPTIONS method here
+									response.reset();
+									response.setStatus(HttpServletResponse.SC_OK); // TODO: Probably not required, test
+									response.setHeader("Allow", allow);
+									// TODO: Test if Content-Length 0 is set, or if we still need to set it manually?
+									response.setContentLength(0);
+									response.getOutputStream().close();
+									return Result.TERMINATE;
+								} else {
+									assert !methodSet.contains(method);
+									// Respond with 405 Method Not Allowed
+									response.reset();
+									response.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+									// TODO: List of allowed methods required in "Allow" header.  Fix in other places within the AO codebase, too.
+									response.setHeader("Allow", allow);
+									// TODO: Test if Content-Length 0 is set, or if we still need to set it manually?
+									response.setContentLength(0);
+									response.getOutputStream().close();
+									return Result.TERMINATE;
+								}
 							}
 						}
 						return Result.CONTINUE;
 					}
 				};
+			}
+
+			/**
+			 * @see  #constrain(java.util.Collection)
+			 */
+			public static Action constrain(String ... methods) {
+				return constrain(AoCollections.unmodifiableCopySet(Arrays.asList(methods)));
 			}
 		}
 		// </editor-fold>
