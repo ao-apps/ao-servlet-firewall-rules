@@ -2747,6 +2747,8 @@ public class Rules {
 			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			// TODO: overloads to provide message
+			// TODO: Should all these throw ServletException when inside INCLUDE dispatcher, since can't be applied?
+			// TODO: Or interact with AO Dispatcher, then throw ServletException if not inside an AO dispatcher?
 			public static final Action FORBIDDEN = new SendError(HttpServletResponse.SC_FORBIDDEN);
 
 			/**
