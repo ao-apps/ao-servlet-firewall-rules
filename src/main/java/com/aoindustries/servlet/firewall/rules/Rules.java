@@ -28,7 +28,6 @@ import com.aoindustries.servlet.firewall.api.Matcher;
 import static com.aoindustries.servlet.firewall.api.MatcherUtil.callRules;
 import static com.aoindustries.servlet.firewall.api.MatcherUtil.doMatches;
 import com.aoindustries.servlet.firewall.api.Rule;
-import com.aoindustries.servlet.http.ServletUtil;
 import com.aoindustries.util.AoCollections;
 import java.io.IOException;
 import java.util.Arrays;
