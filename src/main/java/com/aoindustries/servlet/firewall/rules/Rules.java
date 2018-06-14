@@ -2314,7 +2314,7 @@ public class Rules {
 			 * See <a href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.2">https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.2</a>
 			 * </p>
 			 * <p>
-			 * Responds with 405 if the request is not one of the given methods, {@link #OPTIONS}, or an implied {@link #HEAD}.
+			 * Responds with <code>405 Method Not Allowed</code> if the request is not one of the given methods, {@link #OPTIONS}, or an implied {@link #HEAD}.
 			 * See <a href="https://tools.ietf.org/html/rfc7231#section-6.5.5">https://tools.ietf.org/html/rfc7231#section-6.5.5</a>.
 			 * </p>
 			 * <p>
@@ -2383,6 +2383,7 @@ public class Rules {
 									// Respond with 405 Method Not Allowed
 									response.reset();
 									response.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+									// TODO: Do we need "Method Not Allowed" to be specified on status?
 									// TODO: List of allowed methods required in "Allow" header.  Fix in other places within the AO codebase, too.
 									response.setHeader("Allow", allow);
 									// TODO: Test if Content-Length 0 is set, or if we still need to set it manually?
