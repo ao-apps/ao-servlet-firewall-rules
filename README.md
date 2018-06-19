@@ -1,4 +1,4 @@
-# [<img src="ao-logo.png" alt="AO Logo" width="35" height="40">](https://aoindustries.com/) [AO Servlet Firewall](https://aoindustries.com/ao-servlet-firewall/) / [Rules](https://aoindustries.com/ao-servlet-firewall/rules/)
+# [<img src="ao-logo.png" alt="AO Logo" width="35" height="40">](https://github.com/aoindustries) [AO Servlet Firewall](https://github.com/aoindustries/ao-servlet-firewall) / [Rules](https://github.com/aoindustries/ao-servlet-firewall-rules)
 <p>
 	<a href="https://aoindustries.com/life-cycle#project-alpha">
 		<img src="https://aoindustries.com/ao-badges/project-alpha.svg" alt="project: alpha" />
