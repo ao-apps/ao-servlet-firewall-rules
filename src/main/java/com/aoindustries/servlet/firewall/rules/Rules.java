@@ -154,7 +154,7 @@ public class Rules {
 	 * @return  Returns {@link Matcher.Result#MATCH} always
 	 */
 	// TODO: Rename MATCH?
-	// TODO: Java 1.8+ for all ao-servlet-firewall, for lots of Lambda reductions here?
+	// Java 1.8: for all ao-servlet-firewall, for lots of Lambda reductions here?
 	//       This would make semanticcms 2.0 be java 1.8+, and pragmatickm, ...
 	public static final Matcher all = new Matcher() {
 		@Override
