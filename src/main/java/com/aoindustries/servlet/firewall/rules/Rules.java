@@ -2564,6 +2564,7 @@ public class Rules {
 					case HttpServletResponse.SC_REQUEST_TIMEOUT : return REQUEST_TIMEOUT;
 					case HttpServletResponse.SC_CONFLICT : return CONFLICT;
 					case HttpServletResponse.SC_GONE : return GONE;
+					case 451 : return UNAVAILABLE_FOR_LEGAL_REASONS;
 					case HttpServletResponse.SC_LENGTH_REQUIRED : return LENGTH_REQUIRED;
 					case HttpServletResponse.SC_PRECONDITION_FAILED : return PRECONDITION_FAILED;
 					case HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE : return REQUEST_ENTITY_TOO_LARGE;
@@ -2799,6 +2800,13 @@ public class Rules {
 			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
 			public static final Action GONE = new SendError(HttpServletResponse.SC_GONE);
+
+			/**
+			 * <a href="https://en.wikipedia.org/wiki/HTTP_451">HTTP 451</a>
+			 *
+			 * @return  Returns {@link Action.Result#TERMINATE} always
+			 */
+			public static final Action UNAVAILABLE_FOR_LEGAL_REASONS = new SendError(451);
 
 			/**
 			 * @see  HttpServletResponse#SC_LENGTH_REQUIRED
