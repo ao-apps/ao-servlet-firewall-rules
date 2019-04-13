@@ -36,7 +36,7 @@ along with ao-servlet-firewall-rules.  If not, see <http://www.gnu.org/licenses 
 		datePublished="2018-06-09T14:43:13-0500"
 	>
 		<core:child page="changelog.jspx" />
-		<core:child page="apidocs/" />
+		<core:child page="apidocs/index.jspx" />
 		<ao:include
 			page="/ao-badges/badges.inc.jspx"
 			arg.projectStatus="${currentPage.property.projectStatus}"
