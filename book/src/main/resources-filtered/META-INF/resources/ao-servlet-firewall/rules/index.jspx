@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 ao-servlet-firewall-rules - Rules for servlet-based application request filtering.
-Copyright (C) 2018  AO Industries, Inc.
+Copyright (C) 2018, 2019  AO Industries, Inc.
     support@aoindustries.com
     7262 Bull Pen Cir
     Mobile, AL 36695
@@ -35,7 +35,7 @@ along with ao-servlet-firewall-rules.  If not, see <http://www.gnu.org/licenses 
 		description="@{documented.description}"
 		datePublished="2018-06-09T14:43:13-0500"
 	>
-		<core:child page="changelog" />
+		<core:child page="changelog.jspx" />
 		<core:child page="apidocs/" />
 		<ao:include
 			page="/ao-badges/badges.inc.jspx"
@@ -52,9 +52,9 @@ along with ao-servlet-firewall-rules.  If not, see <http://www.gnu.org/licenses 
 		</p>
 		<section:section label="Project Links">
 			<ul>
-				<li><core:link page="/">Project Home</core:link></li>
-				<li><core:link page="changelog">Changelog</core:link></li>
-				<li><core:link page="apidocs/">API Docs</core:link></li>
+				<li><core:link page="index.jspx">Project Home</core:link></li>
+				<li><core:link page="changelog.jspx">Changelog</core:link></li>
+				<li><core:link page="apidocs/index.jspx">API Docs</core:link></li>
 				<li><ao:a href="https://search.maven.org/#search%7Cgav%7C1%7Cg:%22@{documented.groupId}%22%20AND%20a:%22@{documented.artifactId}%22">Maven Central Repository</ao:a></li>
 				<li><ao:a href="@{documented.scm.url}">GitHub</ao:a></li>
 			</ul>
