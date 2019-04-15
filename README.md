@@ -10,8 +10,8 @@
 		<img src="https://aoindustries.com/ao-badges/packaging-developmental.svg" alt="packaging: developmental" />
 	</a>
 	<br />
-	<a href="https://docs.oracle.com/javase/6/docs/api/">
-		<img src="https://aoindustries.com/ao-badges/java-6.svg" alt="java: &gt;= 6" />
+	<a href="https://docs.oracle.com/javase/7/docs/api/">
+		<img src="https://aoindustries.com/ao-badges/java-7.svg" alt="java: &gt;= 7" />
 	</a>
 	<a href="https://docs.oracle.com/javaee/6/api/">
 		<img src="https://aoindustries.com/ao-badges/javaee-6.svg" alt="java ee: &gt;= 6" />
@@ -36,7 +36,7 @@ Rules for servlet-based application request filtering.
 ## Features
 * TODO: Define features
 * Small footprint, minimal dependencies - not part of a big monolithic package.
-* Java 1.6 implementation:
+* Java 1.7 implementation:
     * Java EE 6+ compatible.
 
 ## Motivation
