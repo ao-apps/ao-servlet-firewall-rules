@@ -1,6 +1,6 @@
 /*
  * ao-servlet-firewall-rules - Rules for servlet-based application request filtering.
- * Copyright (C) 2018  AO Industries, Inc.
+ * Copyright (C) 2018, 2019  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -2802,7 +2802,7 @@ public class Rules {
 			public static final Action GONE = new SendError(HttpServletResponse.SC_GONE);
 
 			/**
-			 * <a href="https://en.wikipedia.org/wiki/HTTP_451">HTTP 451</a>
+			 * <a href="https://wikipedia.org/wiki/HTTP_451">HTTP 451</a>
 			 *
 			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
