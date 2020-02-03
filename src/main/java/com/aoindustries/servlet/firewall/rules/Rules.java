@@ -1,6 +1,6 @@
 /*
  * ao-servlet-firewall-rules - Rules for servlet-based application request filtering.
- * Copyright (C) 2018, 2019  AO Industries, Inc.
+ * Copyright (C) 2018, 2019, 2020  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -2373,7 +2373,7 @@ public class Rules {
 									response.reset();
 									response.setStatus(HttpServletResponse.SC_OK); // TODO: Probably not required, test
 									response.setHeader("Allow", allow);
-									// TODO: Test if Content-Length 0 is set, or if we still need to set it manually?
+									// TODO: Test if content-length 0 is set, or if we still need to set it manually?
 									response.setContentLength(0);
 									response.getOutputStream().close();
 									return Result.TERMINATE;
@@ -2385,7 +2385,7 @@ public class Rules {
 									// TODO: Do we need "Method Not Allowed" to be specified on status?
 									// TODO: List of allowed methods required in "Allow" header.  Fix in other places within the AO codebase, too.
 									response.setHeader("Allow", allow);
-									// TODO: Test if Content-Length 0 is set, or if we still need to set it manually?
+									// TODO: Test if content-length 0 is set, or if we still need to set it manually?
 									response.setContentLength(0);
 									response.getOutputStream().close();
 									return Result.TERMINATE;
