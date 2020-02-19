@@ -28,6 +28,7 @@ import com.aoindustries.servlet.firewall.api.Matcher;
 import static com.aoindustries.servlet.firewall.api.MatcherUtil.callRules;
 import static com.aoindustries.servlet.firewall.api.MatcherUtil.doMatches;
 import com.aoindustries.servlet.firewall.api.Rule;
+import com.aoindustries.servlet.http.HttpServletUtil;
 import com.aoindustries.util.AoCollections;
 import java.io.IOException;
 import java.util.Arrays;
@@ -39,7 +40,6 @@ import javax.servlet.DispatcherType;
 import javax.servlet.FilterChain;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -83,12 +83,7 @@ public class Rules {
 	 * @see  #or(com.aoindustries.servlet.firewall.rules.Rule[])
 	 */
 	// TODO: Rename NO_MATCH?
-	public static final Matcher none = new Matcher() {
-		@Override
-		public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
-			return Matcher.Result.NO_MATCH;
-		}
-	};
+	public static final Matcher none = (context, request) -> Matcher.Result.NO_MATCH;
 
 	/**
 	 * Never matches.  This is useful to replace another rule with a
@@ -154,14 +149,7 @@ public class Rules {
 	 * @return  Returns {@link Matcher.Result#MATCH} always
 	 */
 	// TODO: Rename MATCH?
-	// Java 1.8: for all ao-servlet-firewall, for lots of Lambda reductions here?
-	//       This would make semanticcms 2.0 be java 1.8+, and pragmatickm, ...
-	public static final Matcher all = new Matcher() {
-		@Override
-		public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
-			return Matcher.Result.MATCH;
-		}
-	};
+	public static final Matcher all = (context, request) -> Matcher.Result.MATCH;
 
 	/**
 	 * Always matches and calls all rules.
@@ -171,13 +159,8 @@ public class Rules {
 	 * @return  Returns {@link Matcher.Result#TERMINATE} if a terminating action
 	 *          has occurred.  Otherwise returns {@link Matcher.Result#MATCH}.
 	 */
-	public static Matcher all(final Iterable<? extends Rule> rules) {
-		return new Matcher() {
-			@Override
-			public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-				return callRules(context, rules, Matcher.Result.MATCH);
-			}
-		};
+	public static Matcher all(Iterable<? extends Rule> rules) {
+		return (context, request) -> callRules(context, rules, Matcher.Result.MATCH);
 	}
 
 	/**
@@ -232,38 +215,35 @@ public class Rules {
 	 *
 	 * @return  {@link Matcher.Result#MATCH} when rules is empty
 	 */
-	public static Matcher and(final Iterable<? extends Rule> rules) {
-		return new Matcher() {
-			@Override
-			public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-				for(Rule rule : rules) {
-					if(rule instanceof Matcher) {
-						Matcher.Result result = context.call((Matcher)rule);
-						switch(result) {
-							case TERMINATE :
-								return Matcher.Result.TERMINATE;
-							case NO_MATCH :
-								return Matcher.Result.NO_MATCH;
-							case MATCH :
-								break;
-							default :
-								throw new AssertionError();
-						}
-					}
-					if(rule instanceof Action) {
-						Action.Result result = context.call((Action)rule);
-						switch(result) {
-							case TERMINATE :
-								return Matcher.Result.TERMINATE;
-							case CONTINUE :
-								break;
-							default :
-								throw new AssertionError();
-						}
+	public static Matcher and(Iterable<? extends Rule> rules) {
+		return (context, request) -> {
+			for(Rule rule : rules) {
+				if(rule instanceof Matcher) {
+					Matcher.Result result = context.call((Matcher)rule);
+					switch(result) {
+						case TERMINATE :
+							return Matcher.Result.TERMINATE;
+						case NO_MATCH :
+							return Matcher.Result.NO_MATCH;
+						case MATCH :
+							break;
+						default :
+							throw new AssertionError();
 					}
 				}
-				return Matcher.Result.MATCH;
+				if(rule instanceof Action) {
+					Action.Result result = context.call((Action)rule);
+					switch(result) {
+						case TERMINATE :
+							return Matcher.Result.TERMINATE;
+						case CONTINUE :
+							break;
+						default :
+							throw new AssertionError();
+					}
+				}
 			}
+			return Matcher.Result.MATCH;
 		};
 	}
 
@@ -276,47 +256,44 @@ public class Rules {
 	 *
 	 * @return  {@link Matcher.Result#MATCH} when rules is empty
 	 */
-	public static Matcher and(final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
-		return new Matcher() {
-			@Override
-			public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-				boolean matched = true;
-				RULES :
-				for(Rule rule : rules) {
-					if(rule instanceof Matcher) {
-						Matcher.Result result = context.call((Matcher)rule);
-						switch(result) {
-							case TERMINATE :
-								return Matcher.Result.TERMINATE;
-							case NO_MATCH :
-								matched = false;
-								// Move on to otherwise
-								break RULES;
-							case MATCH :
-								// Continue to action
-								break;
-							default :
-								throw new AssertionError();
-						}
-					}
-					if(rule instanceof Action) {
-						Action.Result result = context.call((Action)rule);
-						switch(result) {
-							case TERMINATE :
-								return Matcher.Result.TERMINATE;
-							case CONTINUE :
-								// Continue to next rule
-								break;
-							default :
-								throw new AssertionError();
-						}
+	public static Matcher and(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+		return (context, request) -> {
+			boolean matched = true;
+			RULES :
+			for(Rule rule : rules) {
+				if(rule instanceof Matcher) {
+					Matcher.Result result = context.call((Matcher)rule);
+					switch(result) {
+						case TERMINATE :
+							return Matcher.Result.TERMINATE;
+						case NO_MATCH :
+							matched = false;
+							// Move on to otherwise
+							break RULES;
+						case MATCH :
+							// Continue to action
+							break;
+						default :
+							throw new AssertionError();
 					}
 				}
-				if(matched) {
-					return Matcher.Result.MATCH;
-				} else {
-					return callRules(context, otherwise, Matcher.Result.NO_MATCH);
+				if(rule instanceof Action) {
+					Action.Result result = context.call((Action)rule);
+					switch(result) {
+						case TERMINATE :
+							return Matcher.Result.TERMINATE;
+						case CONTINUE :
+							// Continue to next rule
+							break;
+						default :
+							throw new AssertionError();
+					}
 				}
+			}
+			if(matched) {
+				return Matcher.Result.MATCH;
+			} else {
+				return callRules(context, otherwise, Matcher.Result.NO_MATCH);
 			}
 		};
 	}
@@ -359,46 +336,43 @@ public class Rules {
 	 *
 	 * @see  #none
 	 */
-	public static Matcher or(final Iterable<? extends Rule> rules) {
-		return new Matcher() {
-			@Override
-			public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-				boolean matched = false;
-				for(Rule rule : rules) {
-					if(rule instanceof Matcher) {
-						if(!matched) {
-							Matcher.Result result = context.call((Matcher)rule);
-							switch(result) {
-								case TERMINATE :
-									return Matcher.Result.TERMINATE;
-								case MATCH :
-									matched = true;
-									break;
-								case NO_MATCH :
-									// Continue lookning for first match
-									break;
-								default :
-									throw new AssertionError();
-							}
-						}
-					}
-					if(rule instanceof Action) {
-						if(matched) {
-							Action.Result result = context.call((Action)rule);
-							switch(result) {
-								case TERMINATE :
-									return Matcher.Result.TERMINATE;
-								case CONTINUE :
-									// Continue with any additional actions
-									break;
-								default :
-									throw new AssertionError();
-							}
+	public static Matcher or(Iterable<? extends Rule> rules) {
+		return (context, request) -> {
+			boolean matched = false;
+			for(Rule rule : rules) {
+				if(rule instanceof Matcher) {
+					if(!matched) {
+						Matcher.Result result = context.call((Matcher)rule);
+						switch(result) {
+							case TERMINATE :
+								return Matcher.Result.TERMINATE;
+							case MATCH :
+								matched = true;
+								break;
+							case NO_MATCH :
+								// Continue lookning for first match
+								break;
+							default :
+								throw new AssertionError();
 						}
 					}
 				}
-				return matched ? Matcher.Result.MATCH : Matcher.Result.NO_MATCH;
+				if(rule instanceof Action) {
+					if(matched) {
+						Action.Result result = context.call((Action)rule);
+						switch(result) {
+							case TERMINATE :
+								return Matcher.Result.TERMINATE;
+							case CONTINUE :
+								// Continue with any additional actions
+								break;
+							default :
+								throw new AssertionError();
+						}
+					}
+				}
 			}
+			return matched ? Matcher.Result.MATCH : Matcher.Result.NO_MATCH;
 		};
 	}
 
@@ -413,49 +387,46 @@ public class Rules {
 	 *
 	 * @see  #none
 	 */
-	public static Matcher or(final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
-		return new Matcher() {
-			@Override
-			public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-				boolean matched = false;
-				for(Rule rule : rules) {
-					if(rule instanceof Matcher) {
-						if(!matched) {
-							Matcher.Result result = context.call((Matcher)rule);
-							switch(result) {
-								case TERMINATE :
-									return Matcher.Result.TERMINATE;
-								case MATCH :
-									matched = true;
-									break;
-								case NO_MATCH :
-									// Continue lookning for first match
-									break;
-								default :
-									throw new AssertionError();
-							}
-						}
-					}
-					if(rule instanceof Action) {
-						if(matched) {
-							Action.Result result = context.call((Action)rule);
-							switch(result) {
-								case TERMINATE :
-									return Matcher.Result.TERMINATE;
-								case CONTINUE :
-									// Continue with any additional actions
-									break;
-								default :
-									throw new AssertionError();
-							}
+	public static Matcher or(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+		return (context, request) -> {
+			boolean matched = false;
+			for(Rule rule : rules) {
+				if(rule instanceof Matcher) {
+					if(!matched) {
+						Matcher.Result result = context.call((Matcher)rule);
+						switch(result) {
+							case TERMINATE :
+								return Matcher.Result.TERMINATE;
+							case MATCH :
+								matched = true;
+								break;
+							case NO_MATCH :
+								// Continue lookning for first match
+								break;
+							default :
+								throw new AssertionError();
 						}
 					}
 				}
-				if(matched) {
-					return Matcher.Result.MATCH;
-				} else {
-					return callRules(context, otherwise, Matcher.Result.NO_MATCH);
+				if(rule instanceof Action) {
+					if(matched) {
+						Action.Result result = context.call((Action)rule);
+						switch(result) {
+							case TERMINATE :
+								return Matcher.Result.TERMINATE;
+							case CONTINUE :
+								// Continue with any additional actions
+								break;
+							default :
+								throw new AssertionError();
+						}
+					}
 				}
+			}
+			if(matched) {
+				return Matcher.Result.MATCH;
+			} else {
+				return callRules(context, otherwise, Matcher.Result.NO_MATCH);
 			}
 		};
 	}
@@ -497,17 +468,14 @@ public class Rules {
 	 * TODO: Should the negation be passed on to them regarding their invocation of any nested actions?
 	 * TODO: What would "otherwise" be?
 	 */
-	public static Matcher not(final Matcher matcher) {
-		return new Matcher() {
-			@Override
-			public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-				Matcher.Result result = context.call(matcher);
-				switch(result) {
-					case TERMINATE : return Matcher.Result.TERMINATE;
-					case MATCH     : return Matcher.Result.NO_MATCH;
-					case NO_MATCH  : return Matcher.Result.MATCH;
-					default        : throw new AssertionError();
-				}
+	public static Matcher not(Matcher matcher) {
+		return (context, request) -> {
+			Matcher.Result result = context.call(matcher);
+			switch(result) {
+				case TERMINATE : return Matcher.Result.TERMINATE;
+				case MATCH     : return Matcher.Result.NO_MATCH;
+				case NO_MATCH  : return Matcher.Result.MATCH;
+				default        : throw new AssertionError();
 			}
 		};
 	}
@@ -519,24 +487,14 @@ public class Rules {
 	 *
 	 * @return  Returns {@link Action.Result#CONTINUE} always
 	 */
-	public static final Action CONTINUE = new Action() {
-		@Override
-		public Action.Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
-			return Action.Result.CONTINUE;
-		}
-	};
+	public static final Action CONTINUE = (context, request, response, chain) -> Action.Result.CONTINUE;
 
 	/**
 	 * Performs no action and terminates request processing.
 	 *
 	 * @return  Returns {@link Action.Result#TERMINATE} always
 	 */
-	public static final Action TERMINATE = new Action() {
-		@Override
-		public Action.Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
-			return Action.Result.TERMINATE;
-		}
-	};
+	public static final Action TERMINATE = (context, request, response, chain) -> Action.Result.TERMINATE;
 
 	// TODO: Options to throw exceptions? IOException, ServletException, SkipPageException (wrapped)
 
@@ -560,12 +518,9 @@ public class Rules {
 		 *
 		 * @return  Returns {@link Action.Result#TERMINATE} always
 		 */
-		public static final Action doFilter = new Action() {
-			@Override
-			public Action.Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
-				chain.doFilter(request, response);
-				return Action.Result.TERMINATE;
-			}
+		public static final Action doFilter = (context, request, response, chain) -> {
+			chain.doFilter(request, response);
+			return Action.Result.TERMINATE;
 		};
 	}
 	// </editor-fold>
@@ -604,15 +559,12 @@ public class Rules {
 		 *
 		 * @return  Returns {@link Action.Result#CONTINUE} always
 		 */
-		public static final Action log = new Action() {
-			@Override
-			public Action.Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
-				// TODO: Could log more
-				// TODO: PathPrefix, if present.  Or a way for PathPrefix to register loggers on the FirewallContext
-				// TODO: Also TRACE/stack/integration for logger on FirewallContext?
-				request.getServletContext().log("request.servetPath = " + request.getServletPath()); // TODO: more + ", prefix = " + prefix + ", prefixPath = " + prefixPath + ", path = " + path);
-				return Action.Result.CONTINUE;
-			}
+		public static final Action log = (context, request, response, chain) -> {
+			// TODO: Could log more
+			// TODO: PathPrefix, if present.  Or a way for PathPrefix to register loggers on the FirewallContext
+			// TODO: Also TRACE/stack/integration for logger on FirewallContext?
+			request.getServletContext().log("request.servetPath = " + request.getServletPath()); // TODO: more + ", prefix = " + prefix + ", prefixPath = " + prefixPath + ", path = " + path);
+			return Action.Result.CONTINUE;
 		};
 
 		/**
@@ -621,14 +573,11 @@ public class Rules {
 		 * @return  Returns {@link Action.Result#CONTINUE} always
 		 */
 		// TODO: Version with a Callable<String>? Java 1.8 functional interface?
-		public static Action log(final String message) {
-			return new Action() {
-				@Override
-				public Action.Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) {
-					// TODO: Could log more or less
-					request.getServletContext().log(message);
-					return Action.Result.CONTINUE;
-				}
+		public static Action log(String message) {
+			return (context, request, response, chain) -> {
+				// TODO: Could log more or less
+				request.getServletContext().log(message);
+				return Action.Result.CONTINUE;
 			};
 		}
 
@@ -740,13 +689,8 @@ public class Rules {
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher is(final DispatcherType dispatcherType, final Iterable<? extends Rule> rules) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-						return doMatches(request.getDispatcherType() == dispatcherType, context, rules);
-					}
-				};
+			public static Matcher is(DispatcherType dispatcherType, Iterable<? extends Rule> rules) {
+				return (context, request) -> doMatches(request.getDispatcherType() == dispatcherType, context, rules);
 			}
 
 			/**
@@ -755,13 +699,8 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher is(final DispatcherType dispatcherType, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-						return doMatches(request.getDispatcherType() == dispatcherType, context, rules, otherwise);
-					}
-				};
+			public static Matcher is(DispatcherType dispatcherType, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return (context, request) -> doMatches(request.getDispatcherType() == dispatcherType, context, rules, otherwise);
 			}
 
 			/**
@@ -788,31 +727,23 @@ public class Rules {
 			/**
 			 * Matches any of a given iterable of {@link DispatcherType}.
 			 */
-			public static Matcher in(final Iterable<? extends DispatcherType> dispatcherTypes) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
-						DispatcherType type = request.getDispatcherType();
-						for(DispatcherType dispatcherType : dispatcherTypes) {
-							if(dispatcherType == type) return Matcher.Result.MATCH;
-						}
-						return Matcher.Result.NO_MATCH;
+			public static Matcher in(Iterable<? extends DispatcherType> dispatcherTypes) {
+				return (context, request) -> {
+					DispatcherType type = request.getDispatcherType();
+					for(DispatcherType dispatcherType : dispatcherTypes) {
+						if(dispatcherType == type) return Matcher.Result.MATCH;
 					}
+					return Matcher.Result.NO_MATCH;
 				};
 			}
 
 			/**
 			 * Matches any of a given set of {@link DispatcherType}.
 			 */
-			public static Matcher in(final EnumSet<? extends DispatcherType> dispatcherTypes) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
-						return dispatcherTypes.contains(request.getDispatcherType())
-							? Matcher.Result.MATCH
-							: Matcher.Result.NO_MATCH;
-					}
-				};
+			public static Matcher in(EnumSet<? extends DispatcherType> dispatcherTypes) {
+				return (context, request) -> dispatcherTypes.contains(request.getDispatcherType())
+					? Matcher.Result.MATCH
+					: Matcher.Result.NO_MATCH;
 			}
 
 			/**
@@ -829,20 +760,17 @@ public class Rules {
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher in(final Iterable<? extends DispatcherType> dispatcherTypes, final Iterable<? extends Rule> rules) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-						boolean matches = false;
-						DispatcherType type = request.getDispatcherType();
-						for(DispatcherType dispatcherType : dispatcherTypes) {
-							if(dispatcherType == type) {
-								matches = true;
-								break;
-							}
+			public static Matcher in(Iterable<? extends DispatcherType> dispatcherTypes, Iterable<? extends Rule> rules) {
+				return (context, request) -> {
+					boolean matches = false;
+					DispatcherType type = request.getDispatcherType();
+					for(DispatcherType dispatcherType : dispatcherTypes) {
+						if(dispatcherType == type) {
+							matches = true;
+							break;
 						}
-						return doMatches(matches, context, rules);
 					}
+					return doMatches(matches, context, rules);
 				};
 			}
 
@@ -852,20 +780,17 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher in(final Iterable<? extends DispatcherType> dispatcherTypes, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-						boolean matches = false;
-						DispatcherType type = request.getDispatcherType();
-						for(DispatcherType dispatcherType : dispatcherTypes) {
-							if(dispatcherType == type) {
-								matches = true;
-								break;
-							}
+			public static Matcher in(Iterable<? extends DispatcherType> dispatcherTypes, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return (context, request) -> {
+					boolean matches = false;
+					DispatcherType type = request.getDispatcherType();
+					for(DispatcherType dispatcherType : dispatcherTypes) {
+						if(dispatcherType == type) {
+							matches = true;
+							break;
 						}
-						return doMatches(matches, context, rules, otherwise);
 					}
+					return doMatches(matches, context, rules, otherwise);
 				};
 			}
 
@@ -874,13 +799,8 @@ public class Rules {
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher in(final EnumSet<? extends DispatcherType> dispatcherTypes, final Iterable<? extends Rule> rules) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-						return doMatches(dispatcherTypes.contains(request.getDispatcherType()), context, rules);
-					}
-				};
+			public static Matcher in(EnumSet<? extends DispatcherType> dispatcherTypes, Iterable<? extends Rule> rules) {
+				return (context, request) -> doMatches(dispatcherTypes.contains(request.getDispatcherType()), context, rules);
 			}
 
 			/**
@@ -889,13 +809,8 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher in(final EnumSet<? extends DispatcherType> dispatcherTypes, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-						return doMatches(dispatcherTypes.contains(request.getDispatcherType()), context, rules, otherwise);
-					}
-				};
+			public static Matcher in(EnumSet<? extends DispatcherType> dispatcherTypes, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return (context, request) -> doMatches(dispatcherTypes.contains(request.getDispatcherType()), context, rules, otherwise);
 			}
 
 			/**
@@ -915,7 +830,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher in(DispatcherType[] dispatcherTypes, Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+			public static Matcher in(DispatcherType[] dispatcherTypes, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
 				if(dispatcherTypes.length == 0) return none;
 				if(dispatcherTypes.length == 1) return is(dispatcherTypes[0], rules, otherwise);
 				return in(EnumSet.of(dispatcherTypes[0], dispatcherTypes), rules, otherwise);
@@ -1252,13 +1167,10 @@ public class Rules {
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher is(final String authType, final Iterable<? extends Rule> rules) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-						String type = request.getAuthType();
-						return doMatches(type != null && type.equals(authType), context, rules);
-					}
+			public static Matcher is(String authType, Iterable<? extends Rule> rules) {
+				return (context, request) -> {
+					String type = request.getAuthType();
+					return doMatches(type != null && type.equals(authType), context, rules);
 				};
 			}
 
@@ -1268,13 +1180,10 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher is(final String authType, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-						String type = request.getAuthType();
-						return doMatches(type != null && type.equals(authType), context, rules, otherwise);
-					}
+			public static Matcher is(String authType, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return (context, request) -> {
+					String type = request.getAuthType();
+					return doMatches(type != null && type.equals(authType), context, rules, otherwise);
 				};
 			}
 
@@ -1302,33 +1211,27 @@ public class Rules {
 			/**
 			 * Matches any of a given iterable of {@link HttpServletRequest#getAuthType()}.
 			 */
-			public static Matcher in(final Iterable<? extends String> authTypes) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
-						String type = request.getAuthType();
-						if(type != null) {
-							for(String authType : authTypes) {
-								if(type.equals(authType)) return Matcher.Result.MATCH;
-							}
+			public static Matcher in(Iterable<? extends String> authTypes) {
+				return (context, request) -> {
+					String type = request.getAuthType();
+					if(type != null) {
+						for(String authType : authTypes) {
+							if(type.equals(authType)) return Matcher.Result.MATCH;
 						}
-						return Matcher.Result.NO_MATCH;
 					}
+					return Matcher.Result.NO_MATCH;
 				};
 			}
 
 			/**
 			 * Matches any of a given set of {@link HttpServletRequest#getAuthType()}.
 			 */
-			public static Matcher in(final Collection<? extends String> authTypes) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
-						String type = request.getAuthType();
-						return type != null && authTypes.contains(type)
-							? Matcher.Result.MATCH
-							: Matcher.Result.NO_MATCH;
-					}
+			public static Matcher in(Collection<? extends String> authTypes) {
+				return (context, request) -> {
+					String type = request.getAuthType();
+					return type != null && authTypes.contains(type)
+						? Matcher.Result.MATCH
+						: Matcher.Result.NO_MATCH;
 				};
 			}
 
@@ -1346,22 +1249,19 @@ public class Rules {
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher in(final Iterable<? extends String> authTypes, final Iterable<? extends Rule> rules) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-						boolean matches = false;
-						String type = request.getAuthType();
-						if(type != null) {
-							for(String authType : authTypes) {
-								if(type.equals(authType)) {
-									matches = true;
-									break;
-								}
+			public static Matcher in(Iterable<? extends String> authTypes, Iterable<? extends Rule> rules) {
+				return (context, request) -> {
+					boolean matches = false;
+					String type = request.getAuthType();
+					if(type != null) {
+						for(String authType : authTypes) {
+							if(type.equals(authType)) {
+								matches = true;
+								break;
 							}
 						}
-						return doMatches(matches, context, rules);
 					}
+					return doMatches(matches, context, rules);
 				};
 			}
 
@@ -1371,22 +1271,19 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher in(final Iterable<? extends String> authTypes, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-						boolean matches = false;
-						String type = request.getAuthType();
-						if(type != null) {
-							for(String authType : authTypes) {
-								if(type.equals(authType)) {
-									matches = true;
-									break;
-								}
+			public static Matcher in(Iterable<? extends String> authTypes, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return (context, request) -> {
+					boolean matches = false;
+					String type = request.getAuthType();
+					if(type != null) {
+						for(String authType : authTypes) {
+							if(type.equals(authType)) {
+								matches = true;
+								break;
 							}
 						}
-						return doMatches(matches, context, rules, otherwise);
 					}
+					return doMatches(matches, context, rules, otherwise);
 				};
 			}
 
@@ -1395,13 +1292,10 @@ public class Rules {
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher in(final Collection<? extends String> authTypes, final Iterable<? extends Rule> rules) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-						String type = request.getAuthType();
-						return doMatches(type != null && authTypes.contains(type), context, rules);
-					}
+			public static Matcher in(Collection<? extends String> authTypes, Iterable<? extends Rule> rules) {
+				return (context, request) -> {
+					String type = request.getAuthType();
+					return doMatches(type != null && authTypes.contains(type), context, rules);
 				};
 			}
 
@@ -1411,13 +1305,10 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher in(final Collection<? extends String> authTypes, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-						String type = request.getAuthType();
-						return doMatches(type != null && authTypes.contains(type), context, rules, otherwise);
-					}
+			public static Matcher in(Collection<? extends String> authTypes, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return (context, request) -> {
+					String type = request.getAuthType();
+					return doMatches(type != null && authTypes.contains(type), context, rules, otherwise);
 				};
 			}
 
@@ -1438,7 +1329,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher in(String[] authTypes, Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+			public static Matcher in(String[] authTypes, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
 				if(authTypes.length == 0) return none;
 				if(authTypes.length == 1) return is(authTypes[0], rules);
 				return in(AoCollections.unmodifiableCopySet(Arrays.asList(authTypes)), rules, otherwise);
@@ -1529,7 +1420,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher isBasic(Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+			public static Matcher isBasic(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
 				return is(HttpServletRequest.BASIC_AUTH, rules, otherwise);
 			}
 
@@ -1573,7 +1464,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher isForm(Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+			public static Matcher isForm(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
 				return is(HttpServletRequest.FORM_AUTH, rules, otherwise);
 			}
 
@@ -1617,7 +1508,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher isClientCert(Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+			public static Matcher isClientCert(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
 				return is(HttpServletRequest.CLIENT_CERT_AUTH, rules, otherwise);
 			}
 
@@ -1661,7 +1552,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher isDigest(Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
+			public static Matcher isDigest(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
 				return is(HttpServletRequest.DIGEST_AUTH, rules, otherwise);
 			}
 
@@ -1703,13 +1594,13 @@ public class Rules {
 			 * Constants for directly supported request methods.
 			 */
 			public static final String
-				DELETE  = "DELETE",
-				HEAD    = "HEAD",
-				GET     = "GET",
-				OPTIONS = "OPTIONS",
-				POST    = "POST",
-				PUT     = "PUT",
-				TRACE   = "TRACE";
+				DELETE  = HttpServletUtil.METHOD_DELETE,
+				HEAD    = HttpServletUtil.METHOD_HEAD,
+				GET     = HttpServletUtil.METHOD_GET,
+				OPTIONS = HttpServletUtil.METHOD_OPTIONS,
+				POST    = HttpServletUtil.METHOD_POST,
+				PUT     = HttpServletUtil.METHOD_PUT,
+				TRACE   = HttpServletUtil.METHOD_TRACE;
 
 			private static class Is implements Matcher {
 				private final String method;
@@ -1743,13 +1634,8 @@ public class Rules {
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher is(final String method, final Iterable<? extends Rule> rules) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-						return doMatches(request.getMethod().equals(method), context, rules);
-					}
-				};
+			public static Matcher is(String method, Iterable<? extends Rule> rules) {
+				return (context, request) -> doMatches(request.getMethod().equals(method), context, rules);
 			}
 
 			/**
@@ -1758,13 +1644,8 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher is(final String method, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-						return doMatches(request.getMethod().equals(method), context, rules, otherwise);
-					}
-				};
+			public static Matcher is(String method, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return (context, request) -> doMatches(request.getMethod().equals(method), context, rules, otherwise);
 			}
 
 			/**
@@ -1791,31 +1672,23 @@ public class Rules {
 			/**
 			 * Matches any of a given iterable of {@link HttpServletRequest#getMethod()}.
 			 */
-			public static Matcher in(final Iterable<? extends String> methods) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
-						String m = request.getMethod();
-						for(String method : methods) {
-							if(m.equals(method)) return Matcher.Result.MATCH;
-						}
-						return Matcher.Result.NO_MATCH;
+			public static Matcher in(Iterable<? extends String> methods) {
+				return (context, request) -> {
+					String m = request.getMethod();
+					for(String method : methods) {
+						if(m.equals(method)) return Matcher.Result.MATCH;
 					}
+					return Matcher.Result.NO_MATCH;
 				};
 			}
 
 			/**
 			 * Matches any of a given set of {@link HttpServletRequest#getMethod()}.
 			 */
-			public static Matcher in(final Collection<? extends String> methods) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
-						return methods.contains(request.getMethod())
-							? Matcher.Result.MATCH
-							: Matcher.Result.NO_MATCH;
-					}
-				};
+			public static Matcher in(Collection<? extends String> methods) {
+				return (context, request) -> methods.contains(request.getMethod())
+					? Matcher.Result.MATCH
+					: Matcher.Result.NO_MATCH;
 			}
 
 			/**
@@ -1833,20 +1706,17 @@ public class Rules {
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher in(final Iterable<? extends String> methods, final Iterable<? extends Rule> rules) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-						boolean matches = false;
-						String m = request.getMethod();
-						for(String method : methods) {
-							if(m.equals(method)) {
-								matches = true;
-								break;
-							}
+			public static Matcher in(Iterable<? extends String> methods, Iterable<? extends Rule> rules) {
+				return (context, request) -> {
+					boolean matches = false;
+					String m = request.getMethod();
+					for(String method : methods) {
+						if(m.equals(method)) {
+							matches = true;
+							break;
 						}
-						return doMatches(matches, context, rules);
 					}
+					return doMatches(matches, context, rules);
 				};
 			}
 
@@ -1856,20 +1726,17 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher in(final Iterable<? extends String> methods, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-						boolean matches = false;
-						String m = request.getMethod();
-						for(String method : methods) {
-							if(m.equals(method)) {
-								matches = true;
-								break;
-							}
+			public static Matcher in(Iterable<? extends String> methods, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return (context, request) -> {
+					boolean matches = false;
+					String m = request.getMethod();
+					for(String method : methods) {
+						if(m.equals(method)) {
+							matches = true;
+							break;
 						}
-						return doMatches(matches, context, rules, otherwise);
 					}
+					return doMatches(matches, context, rules, otherwise);
 				};
 			}
 
@@ -1878,13 +1745,8 @@ public class Rules {
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher in(final Collection<? extends String> methods, final Iterable<? extends Rule> rules) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-						return doMatches(methods.contains(request.getMethod()), context, rules);
-					}
-				};
+			public static Matcher in(Collection<? extends String> methods, Iterable<? extends Rule> rules) {
+				return (context, request) -> doMatches(methods.contains(request.getMethod()), context, rules);
 			}
 
 			/**
@@ -1893,13 +1755,8 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher in(final Collection<? extends String> methods, final Iterable<? extends Rule> rules, final Iterable<? extends Rule> otherwise) {
-				return new Matcher() {
-					@Override
-					public Matcher.Result perform(FirewallContext context, HttpServletRequest request) throws IOException, ServletException {
-						return doMatches(methods.contains(request.getMethod()), context, rules, otherwise);
-					}
-				};
+			public static Matcher in(Collection<? extends String> methods, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+				return (context, request) -> doMatches(methods.contains(request.getMethod()), context, rules, otherwise);
 			}
 
 			/**
@@ -2336,64 +2193,61 @@ public class Rules {
 			 *          {@link Action.Result#CONTINUE} if the request method is one of the given methods.
 			 */
 			// TODO: Iterable version, too?
-			public static Action constrain(final Collection<? extends String> methods) {
-				return new Action() {
-					@Override
-					public Action.Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
-						// Do nothing on includes
-						if(request.getDispatcherType() != DispatcherType.INCLUDE) {
-							String method = request.getMethod();
-							if(
-								!methods.contains(method)
-								// GET implies HEAD
-								&& !(HEAD.equals(method) && methods.contains(GET))
-							) {
-								// Build the Allow list
-								Set<String> methodSet = new HashSet<String>();
-								StringBuilder allowSB = new StringBuilder();
-								for(String m : methods) {
-									if(methodSet.add(m)) {
-										if(allowSB.length() > 0) allowSB.append(", ");
-										allowSB.append(m);
-									}
-								}
-								// GET implies HEAD
-								if(methodSet.contains(GET) && methodSet.add(HEAD)) {
-									assert allowSB.length() > 0;
-									allowSB.append(", ").append(HEAD);
-								}
-								// OPTIONS is supported by the action itself
-								if(methodSet.add(OPTIONS)) {
+			public static Action constrain(Collection<? extends String> methods) {
+				return (context, request, response, chain) -> {
+					// Do nothing on includes
+					if(request.getDispatcherType() != DispatcherType.INCLUDE) {
+						String method = request.getMethod();
+						if(
+							!methods.contains(method)
+							// GET implies HEAD
+							&& !(HEAD.equals(method) && methods.contains(GET))
+						) {
+							// Build the Allow list
+							Set<String> methodSet = new HashSet<>();
+							StringBuilder allowSB = new StringBuilder();
+							for(String m : methods) {
+								if(methodSet.add(m)) {
 									if(allowSB.length() > 0) allowSB.append(", ");
-									allowSB.append(", ").append(OPTIONS);
-								}
-								final String allow = allowSB.toString();
-								if(OPTIONS.equals(method)) {
-									// Respond to OPTIONS method here
-									response.reset();
-									response.setStatus(HttpServletResponse.SC_OK); // TODO: Probably not required, test
-									response.setHeader("Allow", allow);
-									// TODO: Test if content-length 0 is set, or if we still need to set it manually?
-									response.setContentLength(0);
-									response.getOutputStream().close();
-									return Result.TERMINATE;
-								} else {
-									assert !methodSet.contains(method);
-									// Respond with 405 Method Not Allowed
-									response.reset();
-									response.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-									// TODO: Do we need "Method Not Allowed" to be specified on status?
-									// TODO: List of allowed methods required in "Allow" header.  Fix in other places within the AO codebase, too.
-									response.setHeader("Allow", allow);
-									// TODO: Test if content-length 0 is set, or if we still need to set it manually?
-									response.setContentLength(0);
-									response.getOutputStream().close();
-									return Result.TERMINATE;
+									allowSB.append(m);
 								}
 							}
+							// GET implies HEAD
+							if(methodSet.contains(GET) && methodSet.add(HEAD)) {
+								assert allowSB.length() > 0;
+								allowSB.append(", ").append(HEAD);
+							}
+							// OPTIONS is supported by the action itself
+							if(methodSet.add(OPTIONS)) {
+								if(allowSB.length() > 0) allowSB.append(", ");
+								allowSB.append(", ").append(OPTIONS);
+							}
+							final String allow = allowSB.toString();
+							if(OPTIONS.equals(method)) {
+								// Respond to OPTIONS method here
+								response.reset();
+								response.setStatus(HttpServletResponse.SC_OK); // TODO: Probably not required, test
+								response.setHeader("Allow", allow);
+								// TODO: Test if content-length 0 is set, or if we still need to set it manually?
+								response.setContentLength(0);
+								response.getOutputStream().close();
+								return Action.Result.TERMINATE;
+							} else {
+								assert !methodSet.contains(method);
+								// Respond with 405 Method Not Allowed
+								response.reset();
+								response.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+								// TODO: Do we need "Method Not Allowed" to be specified on status?
+								// TODO: List of allowed methods required in "Allow" header.  Fix in other places within the AO codebase, too.
+								response.setHeader("Allow", allow);
+								// TODO: Test if content-length 0 is set, or if we still need to set it manually?
+								response.setContentLength(0);
+								response.getOutputStream().close();
+								return Action.Result.TERMINATE;
+							}
 						}
-						return Result.CONTINUE;
 					}
+					return Action.Result.CONTINUE;
 				};
 			}
 
@@ -2442,12 +2296,9 @@ public class Rules {
 		 *
 		 * @return  Returns {@link Action.Result#CONTINUE} always
 		 */
-		public static final Action logout = new Action() {
-			@Override
-			public Action.Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException {
-				request.logout();
-				return Action.Result.CONTINUE;
-			}
+		public static final Action logout = (context, request, response, chain) -> {
+			request.logout();
+			return Action.Result.CONTINUE;
 		};
 
 		// TODO: Parts?
@@ -2589,13 +2440,10 @@ public class Rules {
 			 *
 			 * @return  Returns {@link Action.Result#TERMINATE} always
 			 */
-			public static final Action sendError(final int sc, final String message) {
-				return new Action() {
-					@Override
-					public Action.Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException {
-						response.sendError(sc, message);
-						return Action.Result.TERMINATE;
-					}
+			public static final Action sendError(int sc, String message) {
+				return (context, request, response, chain) -> {
+					response.sendError(sc, message);
+					return Action.Result.TERMINATE;
 				};
 			}
 
