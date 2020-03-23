@@ -60,18 +60,18 @@ import javax.servlet.http.HttpServletResponse;
  * TODO: Could/should CSRF be built into the firewall? Or is that a separate concept?
  *
  * <p>
- * <b>Implementation Note:</b><br />
+ * <b>Implementation Note:</b><br>
  * Defensive copying of collections is not performed, intentionally allowing callers to provided mutable collections.
  * Although this should be used sparingly, it may be appropriate for rules that call-out to other APIs,
  * such as ACLs inside of a database.
  * </p>
  * <p>
- * <b>Implementation Note:</b><br />
+ * <b>Implementation Note:</b><br>
  * Arrays are not necessarily defensively copied, but the elements of the arrays might also be extracted.  Mutation of
  * arrays is not supported.
  * </p>
  * <p>
- * <b>Implementation Note:</b><br />
+ * <b>Implementation Note:</b><br>
  * This is admittedly overload-heavy.  We are paying the price here in order to have the absolutely
  * cleanest possible rule definitions.  Perhaps a future version of Java will introduce optional parameters
  * and this can be cleaned-up some.
@@ -85,7 +85,7 @@ public class Rules {
 	/**
 	 * Never matches.
 	 * <p>
-	 * <b>Returns:</b><br />
+	 * <b>Returns:</b><br>
 	 * Returns {@link com.aoindustries.servlet.firewall.api.Matcher.Result#NO_MATCH} always
 	 * </p>
 	 *
@@ -156,7 +156,7 @@ public class Rules {
 	/**
 	 * Always matches.
 	 * <p>
-	 * <b>Returns:</b><br />
+	 * <b>Returns:</b><br>
 	 * Returns {@link com.aoindustries.servlet.firewall.api.Matcher.Result#MATCH} always
 	 * </p>
 	 */
@@ -497,7 +497,7 @@ public class Rules {
 	/**
 	 * Performs no action.
 	 * <p>
-	 * <b>Returns:</b><br />
+	 * <b>Returns:</b><br>
 	 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#CONTINUE} always
 	 * </p>
 	 */
@@ -506,7 +506,7 @@ public class Rules {
 	/**
 	 * Performs no action and terminates request processing.
 	 * <p>
-	 * <b>Returns:</b><br />
+	 * <b>Returns:</b><br>
 	 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 	 * </p>
 	 */
@@ -532,7 +532,7 @@ public class Rules {
 		/**
 		 * @see  FilterChain#doFilter(javax.servlet.ServletRequest, javax.servlet.ServletResponse)
 		 * <p>
-		 * <b>Returns:</b><br />
+		 * <b>Returns:</b><br>
 		 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 		 * </p>
 		 */
@@ -575,7 +575,7 @@ public class Rules {
 		/**
 		 * @see  ServletContext#log(java.lang.String)
 		 * <p>
-		 * <b>Returns:</b><br />
+		 * <b>Returns:</b><br>
 		 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#CONTINUE} always
 		 * </p>
 		 */
@@ -2314,7 +2314,7 @@ public class Rules {
 		/**
 		 * @see  HttpServletRequest#logout()
 		 * <p>
-		 * <b>Returns:</b><br />
+		 * <b>Returns:</b><br>
 		 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#CONTINUE} always
 		 * </p>
 		 */
@@ -2472,7 +2472,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_CONTINUE
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2481,7 +2481,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_SWITCHING_PROTOCOLS
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2490,7 +2490,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_OK
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2499,7 +2499,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_CREATED
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2508,7 +2508,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_ACCEPTED
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2517,7 +2517,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_NON_AUTHORITATIVE_INFORMATION
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2526,7 +2526,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_NO_CONTENT
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2535,7 +2535,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_RESET_CONTENT
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2544,7 +2544,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_PARTIAL_CONTENT
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2553,7 +2553,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_MULTIPLE_CHOICES
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2562,7 +2562,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_MOVED_PERMANENTLY
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2571,7 +2571,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_FOUND
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2580,7 +2580,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_MOVED_TEMPORARILY
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 *
@@ -2592,7 +2592,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_SEE_OTHER
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2601,7 +2601,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_NOT_MODIFIED
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2610,7 +2610,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_USE_PROXY
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2619,7 +2619,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_TEMPORARY_REDIRECT
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2628,7 +2628,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_BAD_REQUEST
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2637,7 +2637,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_UNAUTHORIZED
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2646,7 +2646,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_PAYMENT_REQUIRED
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2655,7 +2655,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_FORBIDDEN
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2667,7 +2667,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_NOT_FOUND
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2676,7 +2676,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_METHOD_NOT_ALLOWED
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2685,7 +2685,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_NOT_ACCEPTABLE
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2694,7 +2694,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_PROXY_AUTHENTICATION_REQUIRED
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2703,7 +2703,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_REQUEST_TIMEOUT
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2712,7 +2712,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_CONFLICT
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2721,7 +2721,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_GONE
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2730,7 +2730,7 @@ public class Rules {
 			/**
 			 * <a href="https://wikipedia.org/wiki/HTTP_451">HTTP 451</a>
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2739,7 +2739,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_LENGTH_REQUIRED
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2748,7 +2748,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_PRECONDITION_FAILED
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2757,7 +2757,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_REQUEST_ENTITY_TOO_LARGE
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2766,7 +2766,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_REQUEST_URI_TOO_LONG
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2775,7 +2775,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_UNSUPPORTED_MEDIA_TYPE
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2784,7 +2784,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_REQUESTED_RANGE_NOT_SATISFIABLE
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2793,7 +2793,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_EXPECTATION_FAILED
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2802,7 +2802,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_INTERNAL_SERVER_ERROR
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2811,7 +2811,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_NOT_IMPLEMENTED
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2820,7 +2820,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_BAD_GATEWAY
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2829,7 +2829,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_SERVICE_UNAVAILABLE
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2838,7 +2838,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_GATEWAY_TIMEOUT
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
@@ -2847,7 +2847,7 @@ public class Rules {
 			/**
 			 * @see  HttpServletResponse#SC_HTTP_VERSION_NOT_SUPPORTED
 			 * <p>
-			 * <b>Returns:</b><br />
+			 * <b>Returns:</b><br>
 			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
