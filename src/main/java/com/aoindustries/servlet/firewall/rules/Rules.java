@@ -22,6 +22,7 @@
  */
 package com.aoindustries.servlet.firewall.rules;
 
+import com.aoindustries.collections.AoCollections;
 import com.aoindustries.servlet.firewall.api.Action;
 import com.aoindustries.servlet.firewall.api.FirewallContext;
 import com.aoindustries.servlet.firewall.api.Matcher;
@@ -29,7 +30,6 @@ import static com.aoindustries.servlet.firewall.api.MatcherUtil.callRules;
 import static com.aoindustries.servlet.firewall.api.MatcherUtil.doMatches;
 import com.aoindustries.servlet.firewall.api.Rule;
 import com.aoindustries.servlet.http.HttpServletUtil;
-import com.aoindustries.util.AoCollections;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;

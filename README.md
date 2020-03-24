@@ -36,7 +36,7 @@ Rules for servlet-based application request filtering.
 ## Features
 * TODO: Define features
 * Small footprint, minimal dependencies - not part of a big monolithic package.
-* Java 1.7 implementation:
+* Java 1.8 implementation:
     * Java EE 6+ compatible.
 
 ## Motivation
