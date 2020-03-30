@@ -44,7 +44,6 @@ along with ao-servlet-firewall-rules.  If not, see <http://www.gnu.org/licenses 
 	<inceptionYear>2018</inceptionYear>
 
 	<scm>
-		<!-- Can't inherit due to multi-module -->
 		<connection>scm:git:git://github.com/aoindustries/ao-servlet-firewall-rules.git</connection>
 		<developerConnection>scm:git:git@github.com:aoindustries/ao-servlet-firewall-rules.git</developerConnection>
 		<url>https://github.com/aoindustries/ao-servlet-firewall-rules</url>
