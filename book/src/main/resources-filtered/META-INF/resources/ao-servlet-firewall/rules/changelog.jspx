@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 ao-servlet-firewall-rules - Rules for servlet-based application request filtering.
-Copyright (C) 2018, 2019, 2020  AO Industries, Inc.
+Copyright (C) 2018, 2019, 2020, 2021  AO Industries, Inc.
     support@aoindustries.com
     7262 Bull Pen Cir
     Mobile, AL 36695
@@ -36,7 +36,7 @@ along with ao-servlet-firewall-rules.  If not, see <http://www.gnu.org/licenses 
 		title="@{documented.name} Changelog"
 		shortTitle="Changelog"
 		tocLevels="1"
-		datePublished="2018-06-09T14:41:08-0500"
+		datePublished="2018-06-09T14:41:08-05:00"
 	>
 		<c:if test="${fn:endsWith('@{project.version}', '-SNAPSHOT') and !fn:endsWith('@{project.version}', '-POST-SNAPSHOT')}">
 			<changelog:release
