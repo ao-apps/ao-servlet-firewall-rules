@@ -1,6 +1,6 @@
 /*
  * ao-servlet-firewall-rules - Rules for servlet-based application request filtering.
- * Copyright (C) 2018, 2019, 2020  AO Industries, Inc.
+ * Copyright (C) 2018, 2019, 2020, 2021  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -20,16 +20,16 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with ao-servlet-firewall-rules.  If not, see <http://www.gnu.org/licenses/>.
  */
-package com.aoindustries.servlet.firewall.rules;
+package com.aoapps.servlet.firewall.rules;
 
-import com.aoindustries.collections.AoCollections;
-import com.aoindustries.servlet.firewall.api.Action;
-import com.aoindustries.servlet.firewall.api.FirewallContext;
-import com.aoindustries.servlet.firewall.api.Matcher;
-import static com.aoindustries.servlet.firewall.api.MatcherUtil.callRules;
-import static com.aoindustries.servlet.firewall.api.MatcherUtil.doMatches;
-import com.aoindustries.servlet.firewall.api.Rule;
-import com.aoindustries.servlet.http.HttpServletUtil;
+import com.aoapps.collections.AoCollections;
+import com.aoapps.servlet.firewall.api.Action;
+import com.aoapps.servlet.firewall.api.FirewallContext;
+import com.aoapps.servlet.firewall.api.Matcher;
+import static com.aoapps.servlet.firewall.api.MatcherUtil.callRules;
+import static com.aoapps.servlet.firewall.api.MatcherUtil.doMatches;
+import com.aoapps.servlet.firewall.api.Rule;
+import com.aoapps.servlet.http.HttpServletUtil;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -86,11 +86,11 @@ public class Rules {
 	 * Never matches.
 	 * <p>
 	 * <b>Returns:</b><br>
-	 * Returns {@link com.aoindustries.servlet.firewall.api.Matcher.Result#NO_MATCH} always
+	 * Returns {@link com.aoapps.servlet.firewall.api.Matcher.Result#NO_MATCH} always
 	 * </p>
 	 *
 	 * @see  #or(java.lang.Iterable)
-	 * @see  #or(com.aoindustries.servlet.firewall.api.Rule[])
+	 * @see  #or(com.aoapps.servlet.firewall.api.Rule[])
 	 */
 	// TODO: Rename NO_MATCH?
 	public static final Matcher none = (context, request) -> Matcher.Result.NO_MATCH;
@@ -157,7 +157,7 @@ public class Rules {
 	 * Always matches.
 	 * <p>
 	 * <b>Returns:</b><br>
-	 * Returns {@link com.aoindustries.servlet.firewall.api.Matcher.Result#MATCH} always
+	 * Returns {@link com.aoapps.servlet.firewall.api.Matcher.Result#MATCH} always
 	 * </p>
 	 */
 	// TODO: Rename MATCH?
@@ -168,8 +168,8 @@ public class Rules {
 	 *
 	 * @param  rules  All rules are called, up to any terminating action.
 	 *
-	 * @return  Returns {@link com.aoindustries.servlet.firewall.api.Matcher.Result#TERMINATE} if a terminating action
-	 *          has occurred.  Otherwise returns {@link com.aoindustries.servlet.firewall.api.Matcher.Result#MATCH}.
+	 * @return  Returns {@link com.aoapps.servlet.firewall.api.Matcher.Result#TERMINATE} if a terminating action
+	 *          has occurred.  Otherwise returns {@link com.aoapps.servlet.firewall.api.Matcher.Result#MATCH}.
 	 */
 	public static Matcher all(Iterable<? extends Rule> rules) {
 		return (context, request) -> callRules(context, rules, Matcher.Result.MATCH);
@@ -196,8 +196,8 @@ public class Rules {
 	 *
 	 * @param  rules  All rules are called, up to any terminating action.
 	 *
-	 * @return  Returns {@link com.aoindustries.servlet.firewall.api.Matcher.Result#TERMINATE} if a terminating action
-	 *          has occurred.  Otherwise returns {@link com.aoindustries.servlet.firewall.api.Matcher.Result#MATCH}.
+	 * @return  Returns {@link com.aoapps.servlet.firewall.api.Matcher.Result#TERMINATE} if a terminating action
+	 *          has occurred.  Otherwise returns {@link com.aoapps.servlet.firewall.api.Matcher.Result#MATCH}.
 	 */
 	public static Matcher all(Rule ... rules) {
 		if(rules.length == 0) return all;
@@ -212,9 +212,9 @@ public class Rules {
 	 * @param  rules  All rules are called, up to any terminating action.
 	 * @param  otherwise  The rules are never called.
 	 *
-	 * @return  Returns {@link #all(com.aoindustries.servlet.firewall.api.Rule...)} always
+	 * @return  Returns {@link #all(com.aoapps.servlet.firewall.api.Rule...)} always
 	 *
-	 * @see  #all(com.aoindustries.servlet.firewall.api.Rule...)
+	 * @see  #all(com.aoapps.servlet.firewall.api.Rule...)
 	 */
 	public static Matcher all(Rule[] rules, Rule ... otherwise) {
 		return all(rules);
@@ -225,7 +225,7 @@ public class Rules {
 	 * Stops processing {@code rules} (both matchers and actions) when the first matcher does not match.
 	 * Performs any actions while processing rules, up to the point stopped on first non-matching matcher.
 	 *
-	 * @return  {@link com.aoindustries.servlet.firewall.api.Matcher.Result#MATCH} when rules is empty
+	 * @return  {@link com.aoapps.servlet.firewall.api.Matcher.Result#MATCH} when rules is empty
 	 */
 	public static Matcher and(Iterable<? extends Rule> rules) {
 		return (context, request) -> {
@@ -266,7 +266,7 @@ public class Rules {
 	 *
 	 * @param  otherwise  Performs all {@code otherwise} rules only when a matcher in {@code rules} does not match.
 	 *
-	 * @return  {@link com.aoindustries.servlet.firewall.api.Matcher.Result#MATCH} when rules is empty
+	 * @return  {@link com.aoapps.servlet.firewall.api.Matcher.Result#MATCH} when rules is empty
 	 */
 	public static Matcher and(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
 		return (context, request) -> {
@@ -315,7 +315,7 @@ public class Rules {
 	 * Stops processing {@code rules} (both matchers and actions) when the first matcher does not match.
 	 * Performs any actions while processing rules, up to the point stopped on first non-matching matcher.
 	 *
-	 * @return  {@link com.aoindustries.servlet.firewall.api.Matcher.Result#MATCH} when rules is empty
+	 * @return  {@link com.aoapps.servlet.firewall.api.Matcher.Result#MATCH} when rules is empty
 	 */
 	// TODO: Is "all" the best name for this?  Maybe "and" / "or" instead of "all" / "any"?
 	//       This is because it might be expected that all rules will be invoked, not as a matcher.
@@ -332,7 +332,7 @@ public class Rules {
 	 *
 	 * @param  otherwise  Performs all {@code otherwise} rules only when a matcher in {@code rules} does not match.
 	 *
-	 * @return  {@link com.aoindustries.servlet.firewall.api.Matcher.Result#MATCH} when rules is empty
+	 * @return  {@link com.aoapps.servlet.firewall.api.Matcher.Result#MATCH} when rules is empty
 	 */
 	public static Matcher and(Rule[] rules, Rule ... otherwise) {
 		if(otherwise.length == 0) return and(rules);
@@ -344,7 +344,7 @@ public class Rules {
 	 * Stops processing matchers once the first match is found.
 	 * Begins processing actions once the first match is found.
 	 *
-	 * @return  {@link com.aoindustries.servlet.firewall.api.Matcher.Result#NO_MATCH} when rules is empty
+	 * @return  {@link com.aoapps.servlet.firewall.api.Matcher.Result#NO_MATCH} when rules is empty
 	 *
 	 * @see  #none
 	 */
@@ -395,7 +395,7 @@ public class Rules {
 	 *
 	 * @param  otherwise  Performs all {@code otherwise} rules only when no matcher in {@code rules} matches.
 	 *
-	 * @return  {@link com.aoindustries.servlet.firewall.api.Matcher.Result#NO_MATCH} when rules is empty
+	 * @return  {@link com.aoapps.servlet.firewall.api.Matcher.Result#NO_MATCH} when rules is empty
 	 *
 	 * @see  #none
 	 */
@@ -448,7 +448,7 @@ public class Rules {
 	 * Stops processing matchers once the first match is found.
 	 * Begins processing actions once the first match is found.
 	 *
-	 * @return  {@link com.aoindustries.servlet.firewall.api.Matcher.Result#NO_MATCH} when rules is empty
+	 * @return  {@link com.aoapps.servlet.firewall.api.Matcher.Result#NO_MATCH} when rules is empty
 	 *
 	 * @see  #none
 	 */
@@ -464,7 +464,7 @@ public class Rules {
 	 *
 	 * @param  otherwise  Performs all {@code otherwise} rules only when no matcher in {@code rules} matches.
 	 *
-	 * @return  {@link com.aoindustries.servlet.firewall.api.Matcher.Result#NO_MATCH} when rules is empty
+	 * @return  {@link com.aoapps.servlet.firewall.api.Matcher.Result#NO_MATCH} when rules is empty
 	 *
 	 * @see  #none
 	 */
@@ -498,7 +498,7 @@ public class Rules {
 	 * Performs no action.
 	 * <p>
 	 * <b>Returns:</b><br>
-	 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#CONTINUE} always
+	 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#CONTINUE} always
 	 * </p>
 	 */
 	public static final Action CONTINUE = (context, request, response, chain) -> Action.Result.CONTINUE;
@@ -507,7 +507,7 @@ public class Rules {
 	 * Performs no action and terminates request processing.
 	 * <p>
 	 * <b>Returns:</b><br>
-	 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+	 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 	 * </p>
 	 */
 	public static final Action TERMINATE = (context, request, response, chain) -> Action.Result.TERMINATE;
@@ -533,7 +533,7 @@ public class Rules {
 		 * @see  FilterChain#doFilter(javax.servlet.ServletRequest, javax.servlet.ServletResponse)
 		 * <p>
 		 * <b>Returns:</b><br>
-		 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+		 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 		 * </p>
 		 */
 		public static final Action doFilter = (context, request, response, chain) -> {
@@ -576,7 +576,7 @@ public class Rules {
 		 * @see  ServletContext#log(java.lang.String)
 		 * <p>
 		 * <b>Returns:</b><br>
-		 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#CONTINUE} always
+		 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#CONTINUE} always
 		 * </p>
 		 */
 		public static final Action log = (context, request, response, chain) -> {
@@ -590,7 +590,7 @@ public class Rules {
 		/**
 		 * @see  ServletContext#log(java.lang.String)
 		 *
-		 * @return  Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#CONTINUE} always
+		 * @return  Returns {@link com.aoapps.servlet.firewall.api.Action.Result#CONTINUE} always
 		 */
 		// TODO: Version with a Callable<String>? Java 1.8 functional interface?
 		public static Action log(String message) {
@@ -2209,8 +2209,8 @@ public class Rules {
 			 * Should this throw an exception instead of silently taking no action on skipped dispatchers?
 			 * </p>
 			 *
-			 * @return  {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} if has responded to {@link #OPTIONS} or with 405 status.
-			 *          {@link com.aoindustries.servlet.firewall.api.Action.Result#CONTINUE} if the request method is one of the given methods.
+			 * @return  {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} if has responded to {@link #OPTIONS} or with 405 status.
+			 *          {@link com.aoapps.servlet.firewall.api.Action.Result#CONTINUE} if the request method is one of the given methods.
 			 */
 			// TODO: Iterable version, too?
 			public static Action constrain(Collection<? extends String> methods) {
@@ -2315,7 +2315,7 @@ public class Rules {
 		 * @see  HttpServletRequest#logout()
 		 * <p>
 		 * <b>Returns:</b><br>
-		 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#CONTINUE} always
+		 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#CONTINUE} always
 		 * </p>
 		 */
 		public static final Action logout = (context, request, response, chain) -> {
@@ -2386,7 +2386,7 @@ public class Rules {
 			 *
 			 * @see  HttpServletResponse#sendError(int)
 			 *
-			 * @return  Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * @return  Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 */
 			private static class SendError implements Action {
 				private final int sc;
@@ -2405,7 +2405,7 @@ public class Rules {
 			 *
 			 * @see  HttpServletResponse#sendError(int)
 			 *
-			 * @return  Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * @return  Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 */
 			public static final Action sendError(int sc) {
 				switch(sc) {
@@ -2460,7 +2460,7 @@ public class Rules {
 			 *
 			 * @see  HttpServletResponse#sendError(int, java.lang.String)
 			 *
-			 * @return  Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * @return  Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 */
 			public static final Action sendError(int sc, String message) {
 				return (context, request, response, chain) -> {
@@ -2473,7 +2473,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_CONTINUE
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action CONTINUE = new SendError(HttpServletResponse.SC_CONTINUE);
@@ -2482,7 +2482,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_SWITCHING_PROTOCOLS
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action SWITCHING_PROTOCOLS = new SendError(HttpServletResponse.SC_SWITCHING_PROTOCOLS);
@@ -2491,7 +2491,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_OK
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action OK = new SendError(HttpServletResponse.SC_OK);
@@ -2500,7 +2500,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_CREATED
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action CREATED = new SendError(HttpServletResponse.SC_CREATED);
@@ -2509,7 +2509,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_ACCEPTED
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action ACCEPTED = new SendError(HttpServletResponse.SC_ACCEPTED);
@@ -2518,7 +2518,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_NON_AUTHORITATIVE_INFORMATION
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action NON_AUTHORITATIVE_INFORMATION = new SendError(HttpServletResponse.SC_NON_AUTHORITATIVE_INFORMATION);
@@ -2527,7 +2527,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_NO_CONTENT
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action NO_CONTENT = new SendError(HttpServletResponse.SC_NO_CONTENT);
@@ -2536,7 +2536,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_RESET_CONTENT
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action RESET_CONTENT = new SendError(HttpServletResponse.SC_RESET_CONTENT);
@@ -2545,7 +2545,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_PARTIAL_CONTENT
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action PARTIAL_CONTENT = new SendError(HttpServletResponse.SC_PARTIAL_CONTENT);
@@ -2554,7 +2554,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_MULTIPLE_CHOICES
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action MULTIPLE_CHOICES = new SendError(HttpServletResponse.SC_MULTIPLE_CHOICES);
@@ -2563,7 +2563,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_MOVED_PERMANENTLY
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action MOVED_PERMANENTLY = new SendError(HttpServletResponse.SC_MOVED_PERMANENTLY);
@@ -2572,7 +2572,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_FOUND
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action FOUND = new SendError(HttpServletResponse.SC_FOUND);
@@ -2581,7 +2581,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_MOVED_TEMPORARILY
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 *
 			 * @deprecated  Please use {@link #FOUND}
@@ -2593,7 +2593,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_SEE_OTHER
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action SEE_OTHER = new SendError(HttpServletResponse.SC_SEE_OTHER);
@@ -2602,7 +2602,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_NOT_MODIFIED
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action NOT_MODIFIED = new SendError(HttpServletResponse.SC_NOT_MODIFIED);
@@ -2611,7 +2611,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_USE_PROXY
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action USE_PROXY = new SendError(HttpServletResponse.SC_USE_PROXY);
@@ -2620,7 +2620,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_TEMPORARY_REDIRECT
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action TEMPORARY_REDIRECT = new SendError(HttpServletResponse.SC_TEMPORARY_REDIRECT);
@@ -2629,7 +2629,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_BAD_REQUEST
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action BAD_REQUEST = new SendError(HttpServletResponse.SC_BAD_REQUEST);
@@ -2638,7 +2638,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_UNAUTHORIZED
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action UNAUTHORIZED = new SendError(HttpServletResponse.SC_UNAUTHORIZED);
@@ -2647,7 +2647,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_PAYMENT_REQUIRED
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action PAYMENT_REQUIRED = new SendError(HttpServletResponse.SC_PAYMENT_REQUIRED);
@@ -2656,7 +2656,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_FORBIDDEN
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			// TODO: overloads to provide message
@@ -2668,7 +2668,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_NOT_FOUND
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action NOT_FOUND = new SendError(HttpServletResponse.SC_NOT_FOUND);
@@ -2677,7 +2677,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_METHOD_NOT_ALLOWED
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action METHOD_NOT_ALLOWED = new SendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
@@ -2686,7 +2686,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_NOT_ACCEPTABLE
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action NOT_ACCEPTABLE = new SendError(HttpServletResponse.SC_NOT_ACCEPTABLE);
@@ -2695,7 +2695,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_PROXY_AUTHENTICATION_REQUIRED
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action PROXY_AUTHENTICATION_REQUIRED = new SendError(HttpServletResponse.SC_PROXY_AUTHENTICATION_REQUIRED);
@@ -2704,7 +2704,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_REQUEST_TIMEOUT
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action REQUEST_TIMEOUT = new SendError(HttpServletResponse.SC_REQUEST_TIMEOUT);
@@ -2713,7 +2713,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_CONFLICT
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action CONFLICT = new SendError(HttpServletResponse.SC_CONFLICT);
@@ -2722,7 +2722,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_GONE
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action GONE = new SendError(HttpServletResponse.SC_GONE);
@@ -2731,7 +2731,7 @@ public class Rules {
 			 * <a href="https://wikipedia.org/wiki/HTTP_451">HTTP 451</a>
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action UNAVAILABLE_FOR_LEGAL_REASONS = new SendError(451);
@@ -2740,7 +2740,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_LENGTH_REQUIRED
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action LENGTH_REQUIRED = new SendError(HttpServletResponse.SC_LENGTH_REQUIRED);
@@ -2749,7 +2749,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_PRECONDITION_FAILED
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action PRECONDITION_FAILED = new SendError(HttpServletResponse.SC_PRECONDITION_FAILED);
@@ -2758,7 +2758,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_REQUEST_ENTITY_TOO_LARGE
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action REQUEST_ENTITY_TOO_LARGE = new SendError(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
@@ -2767,7 +2767,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_REQUEST_URI_TOO_LONG
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action REQUEST_URI_TOO_LONG = new SendError(HttpServletResponse.SC_REQUEST_URI_TOO_LONG);
@@ -2776,7 +2776,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_UNSUPPORTED_MEDIA_TYPE
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action UNSUPPORTED_MEDIA_TYPE = new SendError(HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE);
@@ -2785,7 +2785,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_REQUESTED_RANGE_NOT_SATISFIABLE
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action REQUESTED_RANGE_NOT_SATISFIABLE = new SendError(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
@@ -2794,7 +2794,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_EXPECTATION_FAILED
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action EXPECTATION_FAILED = new SendError(HttpServletResponse.SC_EXPECTATION_FAILED);
@@ -2803,7 +2803,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_INTERNAL_SERVER_ERROR
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action INTERNAL_SERVER_ERROR = new SendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -2812,7 +2812,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_NOT_IMPLEMENTED
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action NOT_IMPLEMENTED = new SendError(HttpServletResponse.SC_NOT_IMPLEMENTED);
@@ -2821,7 +2821,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_BAD_GATEWAY
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action BAD_GATEWAY = new SendError(HttpServletResponse.SC_BAD_GATEWAY);
@@ -2830,7 +2830,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_SERVICE_UNAVAILABLE
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action SERVICE_UNAVAILABLE = new SendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
@@ -2839,7 +2839,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_GATEWAY_TIMEOUT
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action GATEWAY_TIMEOUT = new SendError(HttpServletResponse.SC_GATEWAY_TIMEOUT);
@@ -2848,7 +2848,7 @@ public class Rules {
 			 * @see  HttpServletResponse#SC_HTTP_VERSION_NOT_SUPPORTED
 			 * <p>
 			 * <b>Returns:</b><br>
-			 * Returns {@link com.aoindustries.servlet.firewall.api.Action.Result#TERMINATE} always
+			 * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
 			 * </p>
 			 */
 			public static final Action HTTP_VERSION_NOT_SUPPORTED = new SendError(HttpServletResponse.SC_HTTP_VERSION_NOT_SUPPORTED);
