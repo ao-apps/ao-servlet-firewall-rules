@@ -33,6 +33,7 @@ along with ao-servlet-firewall-rules.  If not, see <http://www.gnu.org/licenses 
 	<packaging>bundle</packaging>
 
 	<properties>
+		<module.name>com.aoapps.servlet.firewall.rules</module.name>
 		<javadoc.breadcrumbs><![CDATA[<a target="${javadoc.target}" href="https://oss.aoapps.com/">AO OSS</a>
 / <a target="${javadoc.target}" href="https://oss.aoapps.com/servlet-firewall/">Servlet Firewall</a>
 / <a target="${javadoc.target}" href="${project.url}">Rules</a>]]></javadoc.breadcrumbs>
@@ -141,6 +142,26 @@ along with ao-servlet-firewall-rules.  If not, see <http://www.gnu.org/licenses 
 									<location>${project.build.directory}/offlineLinks/com/aoapps/javadoc/offline/javaee/${javaee.version}</location>
 								</offlineLink>
 							</offlineLinks>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>release</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.felix</groupId><artifactId>maven-bundle-plugin</artifactId>
+						<configuration>
+							<instructions>
+								<!--
+									Releases use "Automatic-Module-Name" instead of "module-info.java"
+									since has direct dependencies that are not yet modularized.
+								-->
+								<Automatic-Module-Name>${module.name}</Automatic-Module-Name>
+								<Private-Package>!.</Private-Package>
+							</instructions>
 						</configuration>
 					</plugin>
 				</plugins>
