@@ -37,6 +37,7 @@ along with ao-servlet-firewall-rules.  If not, see <http://www.gnu.org/licenses 
 		shortTitle="Changelog"
 		tocLevels="1"
 		datePublished="2018-06-09T14:41:08-05:00"
+		dateModified="2021-07-21T09:01:36-05:00"
 	>
 		<c:if test="${fn:endsWith('@{project.version}', '-SNAPSHOT') and !fn:endsWith('@{project.version}', '-POST-SNAPSHOT')}">
 			<changelog:release
@@ -47,9 +48,9 @@ along with ao-servlet-firewall-rules.  If not, see <http://www.gnu.org/licenses 
 				repository="@{nexusUrl}content/repositories/snapshots/"
 				scmUrl="@{project.scm.url}"
 			>
-				<ol>
+				<ul>
 					<li>New project for rules for servlet-based application request filtering.</li>
-				</ol>
+				</ul>
 			</changelog:release>
 		</c:if>
 	</core:page>
