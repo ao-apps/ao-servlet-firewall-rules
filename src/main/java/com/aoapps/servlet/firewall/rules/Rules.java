@@ -2191,7 +2191,7 @@ public class Rules {
 			 * </p>
 			 * <p>
 			 * Responds with <code>405 Method Not Allowed</code> if the request is not one of the given methods, {@link #OPTIONS}, or an implied {@link #HEAD}.
-			 * See <a href="https://tools.ietf.org/html/rfc7231#section-6.5.5">https://tools.ietf.org/html/rfc7231#section-6.5.5</a>.
+			 * See <a href="https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.5">https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.5</a>.
 			 * </p>
 			 * <p>
 			 * No action is taken when the dispatcher is {@link DispatcherType#INCLUDE}, due to the
