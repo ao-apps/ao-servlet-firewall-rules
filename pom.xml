@@ -39,7 +39,7 @@ along with ao-servlet-firewall-rules.  If not, see <http://www.gnu.org/licenses 
 / <a target="${javadoc.target}" href="${project.url}">Rules</a>]]></javadoc.breadcrumbs>
 		<!-- SonarQube -->
 		<sonar.projectKey>${project.groupId}:${project.artifactId}</sonar.projectKey>
-		<sonar.organization>aoindustries</sonar.organization>
+		<sonar.organization>ao-apps</sonar.organization>
 		<sonar.host.url>https://sonarcloud.io</sonar.host.url>
 		<!-- TODO: Implement tests -->
 		<sonar.coverage.exclusions>**.*</sonar.coverage.exclusions>
@@ -74,20 +74,20 @@ along with ao-servlet-firewall-rules.  If not, see <http://www.gnu.org/licenses 
 	</developers>
 
 	<scm>
-		<connection>scm:git:git://github.com/aoindustries/ao-servlet-firewall-rules.git</connection>
-		<developerConnection>scm:git:git@github.com:aoindustries/ao-servlet-firewall-rules.git</developerConnection>
-		<url>https://github.com/aoindustries/ao-servlet-firewall-rules</url>
+		<connection>scm:git:git://github.com/ao-apps/ao-servlet-firewall-rules.git</connection>
+		<developerConnection>scm:git:git@github.com:ao-apps/ao-servlet-firewall-rules.git</developerConnection>
+		<url>https://github.com/ao-apps/ao-servlet-firewall-rules</url>
 		<tag>HEAD</tag>
 	</scm>
 
 	<issueManagement>
 		<system>GitHub Issues</system>
-		<url>https://github.com/aoindustries/ao-servlet-firewall-rules/issues</url>
+		<url>https://github.com/ao-apps/ao-servlet-firewall-rules/issues</url>
 	</issueManagement>
 
 	<ciManagement>
 		<system>GitHub Actions</system>
-		<url>https://github.com/aoindustries/ao-servlet-firewall-rules/actions</url>
+		<url>https://github.com/ao-apps/ao-servlet-firewall-rules/actions</url>
 	</ciManagement>
 
 	<repositories>
