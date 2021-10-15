@@ -189,7 +189,7 @@ along with ao-servlet-firewall-rules.  If not, see <http://www.gnu.org/licenses 
 		<dependencies>
 			<!-- Direct -->
 			<dependency>
-				<groupId>com.aoapps</groupId><artifactId>ao-collections</artifactId><version>3.0.0-SNAPSHOT<!-- ${POST-SNAPSHOT} --></version>
+				<groupId>com.aoapps</groupId><artifactId>ao-collections</artifactId><version>3.0.0${POST-SNAPSHOT}</version>
 			</dependency>
 			<dependency>
 				<groupId>com.aoapps</groupId><artifactId>ao-servlet-firewall-api</artifactId><version>0.1.0${POST-SNAPSHOT}</version>
