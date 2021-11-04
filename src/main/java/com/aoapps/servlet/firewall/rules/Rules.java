@@ -760,7 +760,7 @@ public class Rules {
 			/**
 			 * Matches any of a given set of {@link DispatcherType}.
 			 */
-			public static Matcher in(EnumSet<? extends DispatcherType> dispatcherTypes) {
+			public static Matcher in(Set<? extends DispatcherType> dispatcherTypes) {
 				return (context, request) -> dispatcherTypes.contains(request.getDispatcherType())
 					? Matcher.Result.MATCH
 					: Matcher.Result.NO_MATCH;
@@ -819,7 +819,7 @@ public class Rules {
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher in(EnumSet<? extends DispatcherType> dispatcherTypes, Iterable<? extends Rule> rules) {
+			public static Matcher in(Set<? extends DispatcherType> dispatcherTypes, Iterable<? extends Rule> rules) {
 				return (context, request) -> doMatches(dispatcherTypes.contains(request.getDispatcherType()), context, rules);
 			}
 
@@ -829,7 +829,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher in(EnumSet<? extends DispatcherType> dispatcherTypes, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+			public static Matcher in(Set<? extends DispatcherType> dispatcherTypes, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
 				return (context, request) -> doMatches(dispatcherTypes.contains(request.getDispatcherType()), context, rules, otherwise);
 			}
 
@@ -882,7 +882,7 @@ public class Rules {
 			 *
 			 * @param  rules  Invoked only when matched.
 			 */
-			public static Matcher in(EnumSet<? extends DispatcherType> dispatcherTypes, Rule ... rules) {
+			public static Matcher in(Set<? extends DispatcherType> dispatcherTypes, Rule ... rules) {
 				if(rules.length == 0) return in(dispatcherTypes);
 				return in(dispatcherTypes, Arrays.asList(rules));
 			}
@@ -893,7 +893,7 @@ public class Rules {
 			 * @param  rules  Invoked only when matched.
 			 * @param  otherwise  Invoked only when not matched.
 			 */
-			public static Matcher in(EnumSet<? extends DispatcherType> dispatcherTypes, Rule[] rules, Rule ... otherwise) {
+			public static Matcher in(Set<? extends DispatcherType> dispatcherTypes, Rule[] rules, Rule ... otherwise) {
 				if(otherwise.length == 0) return in(dispatcherTypes, rules);
 				return in(dispatcherTypes, Arrays.asList(rules), Arrays.asList(otherwise)); // TODO: Arrays.asList perform AoCollections optimalCopy, document as arrays defensively copied?
 			}
