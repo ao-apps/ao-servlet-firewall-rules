@@ -107,7 +107,7 @@ public class Rules {
 	 */
 	public static Matcher none(Iterable<? extends Rule> rules) {
 		return none;
-	};
+	}
 
 	/**
 	 * Never matches.  This is useful to replace another rule with a
@@ -122,7 +122,7 @@ public class Rules {
 	 */
 	public static Matcher none(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
 		return none;
-	};
+	}
 
 	/**
 	 * Never matches.  This is useful to replace another rule with a
@@ -136,7 +136,7 @@ public class Rules {
 	 */
 	public static Matcher none(Rule ... rules) {
 		return none;
-	};
+	}
 
 	/**
 	 * Never matches.  This is useful to replace another rule with a
@@ -151,7 +151,7 @@ public class Rules {
 	 */
 	public static Matcher none(Rule[] rules, Rule ... otherwise) {
 		return none;
-	};
+	}
 
 	/**
 	 * Always matches.
