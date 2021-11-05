@@ -77,9 +77,10 @@ import javax.servlet.http.HttpServletResponse;
  * and this can be cleaned-up some.
  * </p>
  */
-public class Rules {
+public abstract class Rules {
 
-	private Rules() {}
+	/** Make no instances. */
+	private Rules() {throw new AssertionError();}
 
 	// <editor-fold defaultstate="collapsed" desc="Logic">
 	/**
@@ -525,9 +526,10 @@ public class Rules {
 	/**
 	 * @see  FilterChain
 	 */
-	public static class chain {
+	public abstract static class chain {
 
-		private chain() {}
+		/** Make no instances. */
+		private chain() {throw new AssertionError();}
 
 		/**
 		 * @see  FilterChain#doFilter(javax.servlet.ServletRequest, javax.servlet.ServletResponse)
@@ -549,9 +551,10 @@ public class Rules {
 	 *
 	 * // TODO: Name just "context", but what if we have FirewallContext?
 	 */
-	public static class servletContext {
+	public abstract static class servletContext {
 
-		private servletContext() {}
+		/** Make no instances. */
+		private servletContext() {throw new AssertionError();}
 
 		// TODO: orderedLibs, tempDir (from constants?)
 
@@ -630,9 +633,10 @@ public class Rules {
 	 * @see  ServletRequest
 	 * @see  HttpServletRequest
 	 */
-	public static class request {
+	public abstract static class request {
 
-		private request() {}
+		/** Make no instances. */
+		private request() {throw new AssertionError();}
 
 		// <editor-fold defaultstate="collapsed" desc="ServletRequest">
 
@@ -673,9 +677,10 @@ public class Rules {
 		/**
 		 * @see  ServletRequest#getDispatcherType()
 		 */
-		public static class dispatcherType {
+		public abstract static class dispatcherType {
 
-			private dispatcherType() {}
+			/** Make no instances. */
+			private dispatcherType() {throw new AssertionError();}
 
 			private static class Is implements Matcher {
 				private final DispatcherType dispatcherType;
@@ -1153,9 +1158,10 @@ public class Rules {
 		 *
 		 * @see  HttpServletRequest#getAuthType()
 		 */
-		public static class authType {
+		public abstract static class authType {
 
-			private authType() {}
+			/** Make no instances. */
+			private authType() {throw new AssertionError();}
 
 			private static class Is implements Matcher {
 				private final String authType;
@@ -1606,9 +1612,10 @@ public class Rules {
 		/**
 		 * @see  HttpServletRequest#getMethod()
 		 */
-		public static class method {
+		public abstract static class method {
 
-			private method() {}
+			/** Make no instances. */
+			private method() {throw new AssertionError();}
 
 			/**
 			 * Constants for directly supported request methods.
@@ -2335,9 +2342,10 @@ public class Rules {
 	 * @see  ServletResponse
 	 * @see  HttpServletResponse
 	 */
-	public static class response {
+	public abstract static class response {
 
-		private response() {}
+		/** Make no instances. */
+		private response() {throw new AssertionError();}
 
 		// <editor-fold defaultstate="collapsed" desc="ServletResponse">
 
@@ -2377,9 +2385,10 @@ public class Rules {
 		/**
 		 * @see  HttpServletResponse#sendError(int)
 		 */
-		public static class sendError {
+		public abstract static class sendError {
 
-			private sendError() {}
+			/** Make no instances. */
+			private sendError() {throw new AssertionError();}
 
 			/**
 			 * Sends the provided HTTP status code.
