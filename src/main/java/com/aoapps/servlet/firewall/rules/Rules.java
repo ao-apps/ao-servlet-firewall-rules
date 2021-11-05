@@ -2595,7 +2595,7 @@ public abstract class Rules {
 			 *
 			 * @deprecated  Please use {@link #FOUND}
 			 */
-			@Deprecated
+			@Deprecated(forRemoval = false)
 			public static final Action MOVED_TEMPORARILY = FOUND;
 
 			/**
