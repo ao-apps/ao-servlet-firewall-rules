@@ -1,6 +1,6 @@
 /*
  * ao-servlet-firewall-rules - Rules for servlet-based application request filtering.
- * Copyright (C) 2018, 2019, 2020, 2021  AO Industries, Inc.
+ * Copyright (C) 2018, 2019, 2020, 2021, 2022  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -77,7 +77,7 @@ import javax.servlet.http.HttpServletResponse;
  * and this can be cleaned-up some.
  * </p>
  */
-public abstract class Rules {
+public final class Rules {
 
 	/** Make no instances. */
 	private Rules() {throw new AssertionError();}
@@ -526,7 +526,7 @@ public abstract class Rules {
 	/**
 	 * @see  FilterChain
 	 */
-	public abstract static class chain {
+	public final static class chain {
 
 		/** Make no instances. */
 		private chain() {throw new AssertionError();}
@@ -551,7 +551,7 @@ public abstract class Rules {
 	 *
 	 * // TODO: Name just "context", but what if we have FirewallContext?
 	 */
-	public abstract static class servletContext {
+	public final static class servletContext {
 
 		/** Make no instances. */
 		private servletContext() {throw new AssertionError();}
@@ -633,7 +633,7 @@ public abstract class Rules {
 	 * @see  ServletRequest
 	 * @see  HttpServletRequest
 	 */
-	public abstract static class request {
+	public final static class request {
 
 		/** Make no instances. */
 		private request() {throw new AssertionError();}
@@ -677,7 +677,7 @@ public abstract class Rules {
 		/**
 		 * @see  ServletRequest#getDispatcherType()
 		 */
-		public abstract static class dispatcherType {
+		public final static class dispatcherType {
 
 			/** Make no instances. */
 			private dispatcherType() {throw new AssertionError();}
@@ -1158,7 +1158,7 @@ public abstract class Rules {
 		 *
 		 * @see  HttpServletRequest#getAuthType()
 		 */
-		public abstract static class authType {
+		public final static class authType {
 
 			/** Make no instances. */
 			private authType() {throw new AssertionError();}
@@ -1612,7 +1612,7 @@ public abstract class Rules {
 		/**
 		 * @see  HttpServletRequest#getMethod()
 		 */
-		public abstract static class method {
+		public final static class method {
 
 			/** Make no instances. */
 			private method() {throw new AssertionError();}
@@ -2342,7 +2342,7 @@ public abstract class Rules {
 	 * @see  ServletResponse
 	 * @see  HttpServletResponse
 	 */
-	public abstract static class response {
+	public final static class response {
 
 		/** Make no instances. */
 		private response() {throw new AssertionError();}
@@ -2385,7 +2385,7 @@ public abstract class Rules {
 		/**
 		 * @see  HttpServletResponse#sendError(int)
 		 */
-		public abstract static class sendError {
+		public final static class sendError {
 
 			/** Make no instances. */
 			private sendError() {throw new AssertionError();}
