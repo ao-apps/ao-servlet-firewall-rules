@@ -526,7 +526,7 @@ public final class Rules {
 	/**
 	 * @see  FilterChain
 	 */
-	public final static class chain {
+	public static final class chain {
 
 		/** Make no instances. */
 		private chain() {throw new AssertionError();}
@@ -551,7 +551,7 @@ public final class Rules {
 	 *
 	 * // TODO: Name just "context", but what if we have FirewallContext?
 	 */
-	public final static class servletContext {
+	public static final class servletContext {
 
 		/** Make no instances. */
 		private servletContext() {throw new AssertionError();}
@@ -633,7 +633,7 @@ public final class Rules {
 	 * @see  ServletRequest
 	 * @see  HttpServletRequest
 	 */
-	public final static class request {
+	public static final class request {
 
 		/** Make no instances. */
 		private request() {throw new AssertionError();}
@@ -677,7 +677,7 @@ public final class Rules {
 		/**
 		 * @see  ServletRequest#getDispatcherType()
 		 */
-		public final static class dispatcherType {
+		public static final class dispatcherType {
 
 			/** Make no instances. */
 			private dispatcherType() {throw new AssertionError();}
@@ -1158,7 +1158,7 @@ public final class Rules {
 		 *
 		 * @see  HttpServletRequest#getAuthType()
 		 */
-		public final static class authType {
+		public static final class authType {
 
 			/** Make no instances. */
 			private authType() {throw new AssertionError();}
@@ -1612,7 +1612,7 @@ public final class Rules {
 		/**
 		 * @see  HttpServletRequest#getMethod()
 		 */
-		public final static class method {
+		public static final class method {
 
 			/** Make no instances. */
 			private method() {throw new AssertionError();}
@@ -2342,7 +2342,7 @@ public final class Rules {
 	 * @see  ServletResponse
 	 * @see  HttpServletResponse
 	 */
-	public final static class response {
+	public static final class response {
 
 		/** Make no instances. */
 		private response() {throw new AssertionError();}
@@ -2385,7 +2385,7 @@ public final class Rules {
 		/**
 		 * @see  HttpServletResponse#sendError(int)
 		 */
-		public final static class sendError {
+		public static final class sendError {
 
 			/** Make no instances. */
 			private sendError() {throw new AssertionError();}
