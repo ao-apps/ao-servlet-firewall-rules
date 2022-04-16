@@ -20,6 +20,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with ao-servlet-firewall-rules.  If not, see <https://www.gnu.org/licenses/>.
  */
+
 package com.aoapps.servlet.firewall.rules;
 
 import com.aoapps.collections.AoCollections;
