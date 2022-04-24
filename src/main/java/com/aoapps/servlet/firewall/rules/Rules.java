@@ -237,7 +237,7 @@ public final class Rules {
     return (context, request) -> {
       for (Rule rule : rules) {
         if (rule instanceof Matcher) {
-          Matcher.Result result = context.call((Matcher)rule);
+          Matcher.Result result = context.call((Matcher) rule);
           switch (result) {
             case TERMINATE :
               return Matcher.Result.TERMINATE;
@@ -250,7 +250,7 @@ public final class Rules {
           }
         }
         if (rule instanceof Action) {
-          Action.Result result = context.call((Action)rule);
+          Action.Result result = context.call((Action) rule);
           switch (result) {
             case TERMINATE :
               return Matcher.Result.TERMINATE;
@@ -280,7 +280,7 @@ public final class Rules {
       RULES :
       for (Rule rule : rules) {
         if (rule instanceof Matcher) {
-          Matcher.Result result = context.call((Matcher)rule);
+          Matcher.Result result = context.call((Matcher) rule);
           switch (result) {
             case TERMINATE :
               return Matcher.Result.TERMINATE;
@@ -296,7 +296,7 @@ public final class Rules {
           }
         }
         if (rule instanceof Action) {
-          Action.Result result = context.call((Action)rule);
+          Action.Result result = context.call((Action) rule);
           switch (result) {
             case TERMINATE :
               return Matcher.Result.TERMINATE;
@@ -364,7 +364,7 @@ public final class Rules {
       for (Rule rule : rules) {
         if (rule instanceof Matcher) {
           if (!matched) {
-            Matcher.Result result = context.call((Matcher)rule);
+            Matcher.Result result = context.call((Matcher) rule);
             switch (result) {
               case TERMINATE :
                 return Matcher.Result.TERMINATE;
@@ -381,7 +381,7 @@ public final class Rules {
         }
         if (rule instanceof Action) {
           if (matched) {
-            Action.Result result = context.call((Action)rule);
+            Action.Result result = context.call((Action) rule);
             switch (result) {
               case TERMINATE :
                 return Matcher.Result.TERMINATE;
@@ -415,7 +415,7 @@ public final class Rules {
       for (Rule rule : rules) {
         if (rule instanceof Matcher) {
           if (!matched) {
-            Matcher.Result result = context.call((Matcher)rule);
+            Matcher.Result result = context.call((Matcher) rule);
             switch (result) {
               case TERMINATE :
                 return Matcher.Result.TERMINATE;
@@ -432,7 +432,7 @@ public final class Rules {
         }
         if (rule instanceof Action) {
           if (matched) {
-            Action.Result result = context.call((Action)rule);
+            Action.Result result = context.call((Action) rule);
             switch (result) {
               case TERMINATE :
                 return Matcher.Result.TERMINATE;
@@ -558,6 +558,7 @@ public final class Rules {
       return Action.Result.TERMINATE;
     };
   }
+
   // </editor-fold>
 
   // <editor-fold defaultstate="collapsed" desc="servletContext">
@@ -641,6 +642,7 @@ public final class Rules {
 
     // TODO: declareRoles?
   }
+
   // </editor-fold>
 
   // TODO: Filter name and init parameters from ao-servlet-firewall-filter?
@@ -705,14 +707,16 @@ public final class Rules {
 
       private static class Is implements Matcher {
         private final DispatcherType dispatcherType;
+
         private Is(DispatcherType dispatcherType) {
           this.dispatcherType = dispatcherType;
         }
+
         @Override
         public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
           return request.getDispatcherType() == dispatcherType
-            ? Matcher.Result.MATCH
-            : Matcher.Result.NO_MATCH;
+              ? Matcher.Result.MATCH
+              : Matcher.Result.NO_MATCH;
         }
       }
 
@@ -794,8 +798,8 @@ public final class Rules {
        */
       public static Matcher in(Set<? extends DispatcherType> dispatcherTypes) {
         return (context, request) -> dispatcherTypes.contains(request.getDispatcherType())
-          ? Matcher.Result.MATCH
-          : Matcher.Result.NO_MATCH;
+            ? Matcher.Result.MATCH
+            : Matcher.Result.NO_MATCH;
       }
 
       /**
@@ -1211,6 +1215,7 @@ public final class Rules {
         return is(DispatcherType.ERROR, rules, otherwise);
       }
     }
+
     // </editor-fold>
 
     // </editor-fold>
@@ -1232,15 +1237,17 @@ public final class Rules {
 
       private static class Is implements Matcher {
         private final String authType;
+
         private Is(String authType) {
           this.authType = authType;
         }
+
         @Override
         public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
           String type = request.getAuthType();
           return type != null && type.equals(authType)
-            ? Matcher.Result.MATCH
-            : Matcher.Result.NO_MATCH;
+              ? Matcher.Result.MATCH
+              : Matcher.Result.NO_MATCH;
         }
       }
 
@@ -1337,8 +1344,8 @@ public final class Rules {
         return (context, request) -> {
           String type = request.getAuthType();
           return type != null && authTypes.contains(type)
-            ? Matcher.Result.MATCH
-            : Matcher.Result.NO_MATCH;
+              ? Matcher.Result.MATCH
+              : Matcher.Result.NO_MATCH;
         };
       }
 
@@ -1719,6 +1726,7 @@ public final class Rules {
         return is(HttpServletRequest.DIGEST_AUTH, rules, otherwise);
       }
     }
+
     // </editor-fold>
 
     // TODO: Cookies?
@@ -1740,24 +1748,26 @@ public final class Rules {
        * Constants for directly supported request methods.
        */
       public static final String
-        DELETE  = HttpServletUtil.METHOD_DELETE,
-        HEAD    = HttpServletUtil.METHOD_HEAD,
-        GET     = HttpServletUtil.METHOD_GET,
-        OPTIONS = HttpServletUtil.METHOD_OPTIONS,
-        POST    = HttpServletUtil.METHOD_POST,
-        PUT     = HttpServletUtil.METHOD_PUT,
-        TRACE   = HttpServletUtil.METHOD_TRACE;
+          DELETE  = HttpServletUtil.METHOD_DELETE,
+          HEAD    = HttpServletUtil.METHOD_HEAD,
+          GET     = HttpServletUtil.METHOD_GET,
+          OPTIONS = HttpServletUtil.METHOD_OPTIONS,
+          POST    = HttpServletUtil.METHOD_POST,
+          PUT     = HttpServletUtil.METHOD_PUT,
+          TRACE   = HttpServletUtil.METHOD_TRACE;
 
       private static class Is implements Matcher {
         private final String method;
+
         private Is(String method) {
           this.method = method;
         }
+
         @Override
         public Matcher.Result perform(FirewallContext context, HttpServletRequest request) {
           return request.getMethod().equals(method)
-            ? Matcher.Result.MATCH
-            : Matcher.Result.NO_MATCH;
+              ? Matcher.Result.MATCH
+              : Matcher.Result.NO_MATCH;
         }
       }
 
@@ -1853,8 +1863,8 @@ public final class Rules {
        */
       public static Matcher in(Collection<? extends String> methods) {
         return (context, request) -> methods.contains(request.getMethod())
-          ? Matcher.Result.MATCH
-          : Matcher.Result.NO_MATCH;
+            ? Matcher.Result.MATCH
+            : Matcher.Result.NO_MATCH;
       }
 
       /**
@@ -2407,9 +2417,9 @@ public final class Rules {
           if (request.getDispatcherType() != DispatcherType.INCLUDE) {
             String method = request.getMethod();
             if (
-              !methods.contains(method)
-              // GET implies HEAD
-              && !(HEAD.equals(method) && methods.contains(GET))
+                !methods.contains(method)
+                    // GET implies HEAD
+                    && !(HEAD.equals(method) && methods.contains(GET))
             ) {
               // Build the Allow list
               Set<String> methodSet = new HashSet<>();
@@ -2520,6 +2530,7 @@ public final class Rules {
 
     // </editor-fold>
   }
+
   // </editor-fold>
 
   // <editor-fold defaultstate="collapsed" desc="response">
@@ -2588,9 +2599,11 @@ public final class Rules {
        */
       private static class SendError implements Action {
         private final int sc;
+
         private SendError(int sc) {
           this.sc = sc;
         }
+
         @Override
         public Action.Result perform(FirewallContext context, HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException {
           response.sendError(sc);
