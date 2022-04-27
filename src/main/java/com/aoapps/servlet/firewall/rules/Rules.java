@@ -1775,25 +1775,25 @@ public final class Rules {
        * Matches one given {@link HttpServletRequest#getMethod()}.
        */
       public static Matcher is(String method) {
-        if (DELETE .equals(method)) {
+        if (DELETE.equals(method)) {
           return isDELETE;
         }
-        if (HEAD   .equals(method)) {
+        if (HEAD.equals(method)) {
           return isHEAD;
         }
-        if (GET    .equals(method)) {
+        if (GET.equals(method)) {
           return isGET;
         }
         if (OPTIONS.equals(method)) {
           return isOPTIONS;
         }
-        if (POST   .equals(method)) {
+        if (POST.equals(method)) {
           return isPOST;
         }
-        if (PUT    .equals(method)) {
+        if (PUT.equals(method)) {
           return isPUT;
         }
-        if (TRACE  .equals(method)) {
+        if (TRACE.equals(method)) {
           return isTRACE;
         }
         return new Is(method); // For any other methods
