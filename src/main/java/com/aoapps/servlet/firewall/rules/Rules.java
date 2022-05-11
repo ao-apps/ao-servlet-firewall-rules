@@ -23,12 +23,13 @@
 
 package com.aoapps.servlet.firewall.rules;
 
+import static com.aoapps.servlet.firewall.api.MatcherUtil.callRules;
+import static com.aoapps.servlet.firewall.api.MatcherUtil.doMatches;
+
 import com.aoapps.collections.AoCollections;
 import com.aoapps.servlet.firewall.api.Action;
 import com.aoapps.servlet.firewall.api.FirewallContext;
 import com.aoapps.servlet.firewall.api.Matcher;
-import static com.aoapps.servlet.firewall.api.MatcherUtil.callRules;
-import static com.aoapps.servlet.firewall.api.MatcherUtil.doMatches;
 import com.aoapps.servlet.firewall.api.Rule;
 import com.aoapps.servlet.http.HttpServletUtil;
 import java.io.IOException;
@@ -49,17 +50,19 @@ import javax.servlet.http.HttpServletResponse;
 /**
  * A set of base {@link Matcher} and {@link Action} implementations based on
  * the servlet API and firewall API.
- *
+ * <p>
  * TODO: Don't like the idea of xml files declaring stuff away from where is used.
  * TODO: How to get the blocked-unless-enabled approach, and the servlet path spaces?
  * TODO: Set of annotations for servlets?  What would it mean?
  * TODO: Impossible to annotate JSP files, set of JSP tags?  Why there?
  * TODO: Is this blowing-up beyond what is needed by thinking too broadly of matchers and actions?
- *
+ * </p>
+ * <p>
  * TODO: Capture groups for regular expression-based matches, useful somehow in actions or further matchers?
- *
+ * </p>
+ * <p>
  * TODO: Could/should CSRF be built into the firewall? Or is that a separate concept?
- *
+ * </p>
  * <p>
  * <b>Implementation Note:</b><br>
  * Defensive copying of collections is not performed, intentionally allowing callers to provided mutable collections.
@@ -239,24 +242,24 @@ public final class Rules {
         if (rule instanceof Matcher) {
           Matcher.Result result = context.call((Matcher) rule);
           switch (result) {
-            case TERMINATE :
+            case TERMINATE:
               return Matcher.Result.TERMINATE;
-            case NO_MATCH :
+            case NO_MATCH:
               return Matcher.Result.NO_MATCH;
-            case MATCH :
+            case MATCH:
               break;
-            default :
+            default:
               throw new AssertionError();
           }
         }
         if (rule instanceof Action) {
           Action.Result result = context.call((Action) rule);
           switch (result) {
-            case TERMINATE :
+            case TERMINATE:
               return Matcher.Result.TERMINATE;
-            case CONTINUE :
+            case CONTINUE:
               break;
-            default :
+            default:
               throw new AssertionError();
           }
         }
@@ -277,33 +280,33 @@ public final class Rules {
   public static Matcher and(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
     return (context, request) -> {
       boolean matched = true;
-      RULES :
+      RULES:
       for (Rule rule : rules) {
         if (rule instanceof Matcher) {
           Matcher.Result result = context.call((Matcher) rule);
           switch (result) {
-            case TERMINATE :
+            case TERMINATE:
               return Matcher.Result.TERMINATE;
-            case NO_MATCH :
+            case NO_MATCH:
               matched = false;
               // Move on to otherwise
               break RULES;
-            case MATCH :
+            case MATCH:
               // Continue to action
               break;
-            default :
+            default:
               throw new AssertionError();
           }
         }
         if (rule instanceof Action) {
           Action.Result result = context.call((Action) rule);
           switch (result) {
-            case TERMINATE :
+            case TERMINATE:
               return Matcher.Result.TERMINATE;
-            case CONTINUE :
+            case CONTINUE:
               // Continue to next rule
               break;
-            default :
+            default:
               throw new AssertionError();
           }
         }
@@ -366,15 +369,15 @@ public final class Rules {
           if (!matched) {
             Matcher.Result result = context.call((Matcher) rule);
             switch (result) {
-              case TERMINATE :
+              case TERMINATE:
                 return Matcher.Result.TERMINATE;
-              case MATCH :
+              case MATCH:
                 matched = true;
                 break;
-              case NO_MATCH :
+              case NO_MATCH:
                 // Continue lookning for first match
                 break;
-              default :
+              default:
                 throw new AssertionError();
             }
           }
@@ -383,12 +386,12 @@ public final class Rules {
           if (matched) {
             Action.Result result = context.call((Action) rule);
             switch (result) {
-              case TERMINATE :
+              case TERMINATE:
                 return Matcher.Result.TERMINATE;
-              case CONTINUE :
+              case CONTINUE:
                 // Continue with any additional actions
                 break;
-              default :
+              default:
                 throw new AssertionError();
             }
           }
@@ -417,15 +420,15 @@ public final class Rules {
           if (!matched) {
             Matcher.Result result = context.call((Matcher) rule);
             switch (result) {
-              case TERMINATE :
+              case TERMINATE:
                 return Matcher.Result.TERMINATE;
-              case MATCH :
+              case MATCH:
                 matched = true;
                 break;
-              case NO_MATCH :
+              case NO_MATCH:
                 // Continue lookning for first match
                 break;
-              default :
+              default:
                 throw new AssertionError();
             }
           }
@@ -434,12 +437,12 @@ public final class Rules {
           if (matched) {
             Action.Result result = context.call((Action) rule);
             switch (result) {
-              case TERMINATE :
+              case TERMINATE:
                 return Matcher.Result.TERMINATE;
-              case CONTINUE :
+              case CONTINUE:
                 // Continue with any additional actions
                 break;
-              default :
+              default:
                 throw new AssertionError();
             }
           }
@@ -489,19 +492,24 @@ public final class Rules {
 
   /**
    * Negates a match.
-   *
+   * <p>
    * TODO: What would it mean to handle multiple rules?  Or best used with "not/any" "not/all"?
    * TODO: Should the negation be passed on to them regarding their invocation of any nested actions?
    * TODO: What would "otherwise" be?
+   * </p>
    */
   public static Matcher not(Matcher matcher) {
     return (context, request) -> {
       Matcher.Result result = context.call(matcher);
       switch (result) {
-        case TERMINATE : return Matcher.Result.TERMINATE;
-        case MATCH     : return Matcher.Result.NO_MATCH;
-        case NO_MATCH  : return Matcher.Result.MATCH;
-        default        : throw new AssertionError();
+        case TERMINATE:
+          return Matcher.Result.TERMINATE;
+        case MATCH:
+          return Matcher.Result.NO_MATCH;
+        case NO_MATCH:
+          return Matcher.Result.MATCH;
+        default:
+          throw new AssertionError();
       }
     };
   }
@@ -537,7 +545,7 @@ public final class Rules {
 
   // <editor-fold defaultstate="collapsed" desc="chain">
   /**
-   * @see  FilterChain
+   * See {@link FilterChain}.
    */
   public static final class chain {
 
@@ -547,7 +555,7 @@ public final class Rules {
     }
 
     /**
-     * @see  FilterChain#doFilter(javax.servlet.ServletRequest, javax.servlet.ServletResponse)
+     * See {@link FilterChain#doFilter(javax.servlet.ServletRequest, javax.servlet.ServletResponse)}.
      * <p>
      * <b>Returns:</b><br>
      * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -563,9 +571,10 @@ public final class Rules {
 
   // <editor-fold defaultstate="collapsed" desc="servletContext">
   /**
-   * @see  ServletContext
-   *
-   * // TODO: Name just "context", but what if we have FirewallContext?
+   * See {@link ServletContext}.
+   * <p>
+   * TODO: Name just "context", but what if we have FirewallContext?
+   * </p>
    */
   public static final class servletContext {
 
@@ -594,7 +603,7 @@ public final class Rules {
     // TODO: hasNamedDispatcher?
 
     /**
-     * @see  ServletContext#log(java.lang.String)
+     * See {@link ServletContext#log(java.lang.String)}.
      * <p>
      * <b>Returns:</b><br>
      * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#CONTINUE} always
@@ -609,7 +618,7 @@ public final class Rules {
     };
 
     /**
-     * @see  ServletContext#log(java.lang.String)
+     * See {@link ServletContext#log(java.lang.String)}.
      *
      * @return  Returns {@link com.aoapps.servlet.firewall.api.Action.Result#CONTINUE} always
      */
@@ -649,8 +658,7 @@ public final class Rules {
 
   // <editor-fold defaultstate="collapsed" desc="request">
   /**
-   * @see  ServletRequest
-   * @see  HttpServletRequest
+   * See {@link ServletRequest} and {@link HttpServletRequest}.
    */
   public static final class request {
 
@@ -696,7 +704,7 @@ public final class Rules {
 
     // <editor-fold defaultstate="collapsed" desc="dispatcherType">
     /**
-     * @see  ServletRequest#getDispatcherType()
+     * See {@link ServletRequest#getDispatcherType()}.
      */
     public static final class dispatcherType {
 
@@ -725,12 +733,18 @@ public final class Rules {
        */
       public static Matcher is(DispatcherType dispatcherType) {
         switch (dispatcherType) {
-          case FORWARD : return isForward;
-          case INCLUDE : return isInclude;
-          case REQUEST : return isRequest;
-          case ASYNC   : return isAsync;
-          case ERROR   : return isError;
-          default      : return new Is(dispatcherType); // For any future dispatcher type
+          case FORWARD:
+            return isForward;
+          case INCLUDE:
+            return isInclude;
+          case REQUEST:
+            return isRequest;
+          case ASYNC:
+            return isAsync;
+          case ERROR:
+            return isError;
+          default:
+            return new Is(dispatcherType); // For any future dispatcher type
         }
       }
 
@@ -1224,9 +1238,10 @@ public final class Rules {
 
     // <editor-fold defaultstate="collapsed" desc="authType">
     /**
+     * See {@link HttpServletRequest#getAuthType()}.
+     * <p>
      * TODO: Support nulls or a method for noAuthType?
-     *
-     * @see  HttpServletRequest#getAuthType()
+     * </p>
      */
     public static final class authType {
 
@@ -1735,7 +1750,7 @@ public final class Rules {
 
     // <editor-fold defaultstate="collapsed" desc="method">
     /**
-     * @see  HttpServletRequest#getMethod()
+     * See {@link HttpServletRequest#getMethod()}.
      */
     public static final class method {
 
@@ -1747,14 +1762,37 @@ public final class Rules {
       /**
        * Constants for directly supported request methods.
        */
-      public static final String
-          DELETE  = HttpServletUtil.METHOD_DELETE,
-          HEAD    = HttpServletUtil.METHOD_HEAD,
-          GET     = HttpServletUtil.METHOD_GET,
-          OPTIONS = HttpServletUtil.METHOD_OPTIONS,
-          POST    = HttpServletUtil.METHOD_POST,
-          PUT     = HttpServletUtil.METHOD_PUT,
-          TRACE   = HttpServletUtil.METHOD_TRACE;
+      public static final String DELETE  = HttpServletUtil.METHOD_DELETE;
+
+      /**
+       * Constants for directly supported request methods.
+       */
+      public static final String HEAD    = HttpServletUtil.METHOD_HEAD;
+
+      /**
+       * Constants for directly supported request methods.
+       */
+      public static final String GET     = HttpServletUtil.METHOD_GET;
+
+      /**
+       * Constants for directly supported request methods.
+       */
+      public static final String OPTIONS = HttpServletUtil.METHOD_OPTIONS;
+
+      /**
+       * Constants for directly supported request methods.
+       */
+      public static final String POST    = HttpServletUtil.METHOD_POST;
+
+      /**
+       * Constants for directly supported request methods.
+       */
+      public static final String PUT     = HttpServletUtil.METHOD_PUT;
+
+      /**
+       * Constants for directly supported request methods.
+       */
+      public static final String TRACE   = HttpServletUtil.METHOD_TRACE;
 
       private static class Is implements Matcher {
         private final String method;
@@ -2423,28 +2461,28 @@ public final class Rules {
             ) {
               // Build the Allow list
               Set<String> methodSet = new HashSet<>();
-              StringBuilder allowSB = new StringBuilder();
+              StringBuilder allowSb = new StringBuilder();
               for (String m : methods) {
                 if (methodSet.add(m)) {
-                  if (allowSB.length() > 0) {
-                    allowSB.append(", ");
+                  if (allowSb.length() > 0) {
+                    allowSb.append(", ");
                   }
-                  allowSB.append(m);
+                  allowSb.append(m);
                 }
               }
               // GET implies HEAD
               if (methodSet.contains(GET) && methodSet.add(HEAD)) {
-                assert allowSB.length() > 0;
-                allowSB.append(", ").append(HEAD);
+                assert allowSb.length() > 0;
+                allowSb.append(", ").append(HEAD);
               }
               // OPTIONS is supported by the action itself
               if (methodSet.add(OPTIONS)) {
-                if (allowSB.length() > 0) {
-                  allowSB.append(", ");
+                if (allowSb.length() > 0) {
+                  allowSb.append(", ");
                 }
-                allowSB.append(", ").append(OPTIONS);
+                allowSb.append(", ").append(OPTIONS);
               }
-              final String allow = allowSB.toString();
+              final String allow = allowSb.toString();
               if (OPTIONS.equals(method)) {
                 // Respond to OPTIONS method here
                 response.reset();
@@ -2474,7 +2512,7 @@ public final class Rules {
       }
 
       /**
-       * @see  #constrain(java.util.Collection)
+       * See {@link #constrain(java.util.Collection)}.
        */
       public static Action constrain(String ... methods) {
         return constrain(AoCollections.unmodifiableCopySet(Arrays.asList(methods)));
@@ -2514,7 +2552,7 @@ public final class Rules {
     // TODO: login?
 
     /**
-     * @see  HttpServletRequest#logout()
+     * See {@link HttpServletRequest#logout()}.
      * <p>
      * <b>Returns:</b><br>
      * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#CONTINUE} always
@@ -2535,8 +2573,7 @@ public final class Rules {
 
   // <editor-fold defaultstate="collapsed" desc="response">
   /**
-   * @see  ServletResponse
-   * @see  HttpServletResponse
+   * See {@link ServletResponse} and {@link HttpServletResponse}.
    */
   public static final class response {
 
@@ -2581,7 +2618,7 @@ public final class Rules {
     // TODO: setStatus
 
     /**
-     * @see  HttpServletResponse#sendError(int)
+     * See {@link HttpServletResponse#sendError(int)}.
      */
     public static final class sendError {
 
@@ -2620,49 +2657,92 @@ public final class Rules {
        */
       public static final Action sendError(int sc) {
         switch (sc) {
-          case HttpServletResponse.SC_CONTINUE : return CONTINUE;
-          case HttpServletResponse.SC_SWITCHING_PROTOCOLS : return SWITCHING_PROTOCOLS;
-          case HttpServletResponse.SC_OK : return OK;
-          case HttpServletResponse.SC_CREATED : return CREATED;
-          case HttpServletResponse.SC_ACCEPTED : return ACCEPTED;
-          case HttpServletResponse.SC_NON_AUTHORITATIVE_INFORMATION : return NON_AUTHORITATIVE_INFORMATION;
-          case HttpServletResponse.SC_NO_CONTENT : return NO_CONTENT;
-          case HttpServletResponse.SC_RESET_CONTENT : return RESET_CONTENT;
-          case HttpServletResponse.SC_PARTIAL_CONTENT : return PARTIAL_CONTENT;
-          case HttpServletResponse.SC_MULTIPLE_CHOICES : return MULTIPLE_CHOICES;
-          case HttpServletResponse.SC_MOVED_PERMANENTLY : return MOVED_PERMANENTLY;
-          // Duplicate with SC_FOUND: case HttpServletResponse.SC_MOVED_TEMPORARILY : return MOVED_TEMPORARILY;
-          case HttpServletResponse.SC_FOUND : return FOUND;
-          case HttpServletResponse.SC_SEE_OTHER : return SEE_OTHER;
-          case HttpServletResponse.SC_NOT_MODIFIED : return NOT_MODIFIED;
-          case HttpServletResponse.SC_USE_PROXY : return USE_PROXY;
-          case HttpServletResponse.SC_TEMPORARY_REDIRECT : return TEMPORARY_REDIRECT;
-          case HttpServletResponse.SC_BAD_REQUEST : return BAD_REQUEST;
-          case HttpServletResponse.SC_UNAUTHORIZED : return UNAUTHORIZED;
-          case HttpServletResponse.SC_PAYMENT_REQUIRED : return PAYMENT_REQUIRED;
-          case HttpServletResponse.SC_FORBIDDEN : return FORBIDDEN;
-          case HttpServletResponse.SC_NOT_FOUND : return NOT_FOUND;
-          case HttpServletResponse.SC_METHOD_NOT_ALLOWED : return METHOD_NOT_ALLOWED;
-          case HttpServletResponse.SC_NOT_ACCEPTABLE : return NOT_ACCEPTABLE;
-          case HttpServletResponse.SC_PROXY_AUTHENTICATION_REQUIRED : return PROXY_AUTHENTICATION_REQUIRED;
-          case HttpServletResponse.SC_REQUEST_TIMEOUT : return REQUEST_TIMEOUT;
-          case HttpServletResponse.SC_CONFLICT : return CONFLICT;
-          case HttpServletResponse.SC_GONE : return GONE;
-          case 451 : return UNAVAILABLE_FOR_LEGAL_REASONS;
-          case HttpServletResponse.SC_LENGTH_REQUIRED : return LENGTH_REQUIRED;
-          case HttpServletResponse.SC_PRECONDITION_FAILED : return PRECONDITION_FAILED;
-          case HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE : return REQUEST_ENTITY_TOO_LARGE;
-          case HttpServletResponse.SC_REQUEST_URI_TOO_LONG : return REQUEST_URI_TOO_LONG;
-          case HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE : return UNSUPPORTED_MEDIA_TYPE;
-          case HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE : return REQUESTED_RANGE_NOT_SATISFIABLE;
-          case HttpServletResponse.SC_EXPECTATION_FAILED : return EXPECTATION_FAILED;
-          case HttpServletResponse.SC_INTERNAL_SERVER_ERROR : return INTERNAL_SERVER_ERROR;
-          case HttpServletResponse.SC_NOT_IMPLEMENTED : return NOT_IMPLEMENTED;
-          case HttpServletResponse.SC_BAD_GATEWAY : return BAD_GATEWAY;
-          case HttpServletResponse.SC_SERVICE_UNAVAILABLE : return SERVICE_UNAVAILABLE;
-          case HttpServletResponse.SC_GATEWAY_TIMEOUT : return GATEWAY_TIMEOUT;
-          case HttpServletResponse.SC_HTTP_VERSION_NOT_SUPPORTED : return HTTP_VERSION_NOT_SUPPORTED;
-          default : return new SendError(sc); // Other or future status codes
+          case HttpServletResponse.SC_CONTINUE:
+            return CONTINUE;
+          case HttpServletResponse.SC_SWITCHING_PROTOCOLS:
+            return SWITCHING_PROTOCOLS;
+          case HttpServletResponse.SC_OK:
+            return OK;
+          case HttpServletResponse.SC_CREATED:
+            return CREATED;
+          case HttpServletResponse.SC_ACCEPTED:
+            return ACCEPTED;
+          case HttpServletResponse.SC_NON_AUTHORITATIVE_INFORMATION:
+            return NON_AUTHORITATIVE_INFORMATION;
+          case HttpServletResponse.SC_NO_CONTENT:
+            return NO_CONTENT;
+          case HttpServletResponse.SC_RESET_CONTENT:
+            return RESET_CONTENT;
+          case HttpServletResponse.SC_PARTIAL_CONTENT:
+            return PARTIAL_CONTENT;
+          case HttpServletResponse.SC_MULTIPLE_CHOICES:
+            return MULTIPLE_CHOICES;
+          case HttpServletResponse.SC_MOVED_PERMANENTLY:
+            return MOVED_PERMANENTLY;
+          // Duplicate with SC_FOUND: case HttpServletResponse.SC_MOVED_TEMPORARILY:
+          //  return MOVED_TEMPORARILY;
+          case HttpServletResponse.SC_FOUND:
+            return FOUND;
+          case HttpServletResponse.SC_SEE_OTHER:
+            return SEE_OTHER;
+          case HttpServletResponse.SC_NOT_MODIFIED:
+            return NOT_MODIFIED;
+          case HttpServletResponse.SC_USE_PROXY:
+            return USE_PROXY;
+          case HttpServletResponse.SC_TEMPORARY_REDIRECT:
+            return TEMPORARY_REDIRECT;
+          case HttpServletResponse.SC_BAD_REQUEST:
+            return BAD_REQUEST;
+          case HttpServletResponse.SC_UNAUTHORIZED:
+            return UNAUTHORIZED;
+          case HttpServletResponse.SC_PAYMENT_REQUIRED:
+            return PAYMENT_REQUIRED;
+          case HttpServletResponse.SC_FORBIDDEN:
+            return FORBIDDEN;
+          case HttpServletResponse.SC_NOT_FOUND:
+            return NOT_FOUND;
+          case HttpServletResponse.SC_METHOD_NOT_ALLOWED:
+            return METHOD_NOT_ALLOWED;
+          case HttpServletResponse.SC_NOT_ACCEPTABLE:
+            return NOT_ACCEPTABLE;
+          case HttpServletResponse.SC_PROXY_AUTHENTICATION_REQUIRED:
+            return PROXY_AUTHENTICATION_REQUIRED;
+          case HttpServletResponse.SC_REQUEST_TIMEOUT:
+            return REQUEST_TIMEOUT;
+          case HttpServletResponse.SC_CONFLICT:
+            return CONFLICT;
+          case HttpServletResponse.SC_GONE:
+            return GONE;
+          case 451:
+            return UNAVAILABLE_FOR_LEGAL_REASONS;
+          case HttpServletResponse.SC_LENGTH_REQUIRED:
+            return LENGTH_REQUIRED;
+          case HttpServletResponse.SC_PRECONDITION_FAILED:
+            return PRECONDITION_FAILED;
+          case HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE:
+            return REQUEST_ENTITY_TOO_LARGE;
+          case HttpServletResponse.SC_REQUEST_URI_TOO_LONG:
+            return REQUEST_URI_TOO_LONG;
+          case HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE:
+            return UNSUPPORTED_MEDIA_TYPE;
+          case HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE:
+            return REQUESTED_RANGE_NOT_SATISFIABLE;
+          case HttpServletResponse.SC_EXPECTATION_FAILED:
+            return EXPECTATION_FAILED;
+          case HttpServletResponse.SC_INTERNAL_SERVER_ERROR:
+            return INTERNAL_SERVER_ERROR;
+          case HttpServletResponse.SC_NOT_IMPLEMENTED:
+            return NOT_IMPLEMENTED;
+          case HttpServletResponse.SC_BAD_GATEWAY:
+            return BAD_GATEWAY;
+          case HttpServletResponse.SC_SERVICE_UNAVAILABLE:
+            return SERVICE_UNAVAILABLE;
+          case HttpServletResponse.SC_GATEWAY_TIMEOUT:
+            return GATEWAY_TIMEOUT;
+          case HttpServletResponse.SC_HTTP_VERSION_NOT_SUPPORTED:
+            return HTTP_VERSION_NOT_SUPPORTED;
+          default:
+            return new SendError(sc); // Other or future status codes
         }
       }
 
@@ -2681,7 +2761,7 @@ public final class Rules {
       }
 
       /**
-       * @see  HttpServletResponse#SC_CONTINUE
+       * See {@link HttpServletResponse#SC_CONTINUE}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2690,7 +2770,7 @@ public final class Rules {
       public static final Action CONTINUE = new SendError(HttpServletResponse.SC_CONTINUE);
 
       /**
-       * @see  HttpServletResponse#SC_SWITCHING_PROTOCOLS
+       * See {@link HttpServletResponse#SC_SWITCHING_PROTOCOLS}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2699,7 +2779,7 @@ public final class Rules {
       public static final Action SWITCHING_PROTOCOLS = new SendError(HttpServletResponse.SC_SWITCHING_PROTOCOLS);
 
       /**
-       * @see  HttpServletResponse#SC_OK
+       * See {@link HttpServletResponse#SC_OK}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2708,7 +2788,7 @@ public final class Rules {
       public static final Action OK = new SendError(HttpServletResponse.SC_OK);
 
       /**
-       * @see  HttpServletResponse#SC_CREATED
+       * See {@link HttpServletResponse#SC_CREATED}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2717,7 +2797,7 @@ public final class Rules {
       public static final Action CREATED = new SendError(HttpServletResponse.SC_CREATED);
 
       /**
-       * @see  HttpServletResponse#SC_ACCEPTED
+       * See {@link HttpServletResponse#SC_ACCEPTED}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2726,7 +2806,7 @@ public final class Rules {
       public static final Action ACCEPTED = new SendError(HttpServletResponse.SC_ACCEPTED);
 
       /**
-       * @see  HttpServletResponse#SC_NON_AUTHORITATIVE_INFORMATION
+       * See {@link HttpServletResponse#SC_NON_AUTHORITATIVE_INFORMATION}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2735,7 +2815,7 @@ public final class Rules {
       public static final Action NON_AUTHORITATIVE_INFORMATION = new SendError(HttpServletResponse.SC_NON_AUTHORITATIVE_INFORMATION);
 
       /**
-       * @see  HttpServletResponse#SC_NO_CONTENT
+       * See {@link HttpServletResponse#SC_NO_CONTENT}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2744,7 +2824,7 @@ public final class Rules {
       public static final Action NO_CONTENT = new SendError(HttpServletResponse.SC_NO_CONTENT);
 
       /**
-       * @see  HttpServletResponse#SC_RESET_CONTENT
+       * See {@link HttpServletResponse#SC_RESET_CONTENT}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2753,7 +2833,7 @@ public final class Rules {
       public static final Action RESET_CONTENT = new SendError(HttpServletResponse.SC_RESET_CONTENT);
 
       /**
-       * @see  HttpServletResponse#SC_PARTIAL_CONTENT
+       * See {@link HttpServletResponse#SC_PARTIAL_CONTENT}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2762,7 +2842,7 @@ public final class Rules {
       public static final Action PARTIAL_CONTENT = new SendError(HttpServletResponse.SC_PARTIAL_CONTENT);
 
       /**
-       * @see  HttpServletResponse#SC_MULTIPLE_CHOICES
+       * See {@link HttpServletResponse#SC_MULTIPLE_CHOICES}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2771,7 +2851,7 @@ public final class Rules {
       public static final Action MULTIPLE_CHOICES = new SendError(HttpServletResponse.SC_MULTIPLE_CHOICES);
 
       /**
-       * @see  HttpServletResponse#SC_MOVED_PERMANENTLY
+       * See {@link HttpServletResponse#SC_MOVED_PERMANENTLY}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2780,7 +2860,7 @@ public final class Rules {
       public static final Action MOVED_PERMANENTLY = new SendError(HttpServletResponse.SC_MOVED_PERMANENTLY);
 
       /**
-       * @see  HttpServletResponse#SC_FOUND
+       * See {@link HttpServletResponse#SC_FOUND}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2789,7 +2869,7 @@ public final class Rules {
       public static final Action FOUND = new SendError(HttpServletResponse.SC_FOUND);
 
       /**
-       * @see  HttpServletResponse#SC_MOVED_TEMPORARILY
+       * See {@link HttpServletResponse#SC_MOVED_TEMPORARILY}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2801,7 +2881,7 @@ public final class Rules {
       public static final Action MOVED_TEMPORARILY = FOUND;
 
       /**
-       * @see  HttpServletResponse#SC_SEE_OTHER
+       * See {@link HttpServletResponse#SC_SEE_OTHER}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2810,7 +2890,7 @@ public final class Rules {
       public static final Action SEE_OTHER = new SendError(HttpServletResponse.SC_SEE_OTHER);
 
       /**
-       * @see  HttpServletResponse#SC_NOT_MODIFIED
+       * See {@link HttpServletResponse#SC_NOT_MODIFIED}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2819,7 +2899,7 @@ public final class Rules {
       public static final Action NOT_MODIFIED = new SendError(HttpServletResponse.SC_NOT_MODIFIED);
 
       /**
-       * @see  HttpServletResponse#SC_USE_PROXY
+       * See {@link HttpServletResponse#SC_USE_PROXY}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2828,7 +2908,7 @@ public final class Rules {
       public static final Action USE_PROXY = new SendError(HttpServletResponse.SC_USE_PROXY);
 
       /**
-       * @see  HttpServletResponse#SC_TEMPORARY_REDIRECT
+       * See {@link HttpServletResponse#SC_TEMPORARY_REDIRECT}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2837,7 +2917,7 @@ public final class Rules {
       public static final Action TEMPORARY_REDIRECT = new SendError(HttpServletResponse.SC_TEMPORARY_REDIRECT);
 
       /**
-       * @see  HttpServletResponse#SC_BAD_REQUEST
+       * See {@link HttpServletResponse#SC_BAD_REQUEST}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2846,7 +2926,7 @@ public final class Rules {
       public static final Action BAD_REQUEST = new SendError(HttpServletResponse.SC_BAD_REQUEST);
 
       /**
-       * @see  HttpServletResponse#SC_UNAUTHORIZED
+       * See {@link HttpServletResponse#SC_UNAUTHORIZED}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2855,7 +2935,7 @@ public final class Rules {
       public static final Action UNAUTHORIZED = new SendError(HttpServletResponse.SC_UNAUTHORIZED);
 
       /**
-       * @see  HttpServletResponse#SC_PAYMENT_REQUIRED
+       * See {@link HttpServletResponse#SC_PAYMENT_REQUIRED}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2864,7 +2944,7 @@ public final class Rules {
       public static final Action PAYMENT_REQUIRED = new SendError(HttpServletResponse.SC_PAYMENT_REQUIRED);
 
       /**
-       * @see  HttpServletResponse#SC_FORBIDDEN
+       * See {@link HttpServletResponse#SC_FORBIDDEN}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2876,7 +2956,7 @@ public final class Rules {
       public static final Action FORBIDDEN = new SendError(HttpServletResponse.SC_FORBIDDEN);
 
       /**
-       * @see  HttpServletResponse#SC_NOT_FOUND
+       * See {@link HttpServletResponse#SC_NOT_FOUND}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2885,7 +2965,7 @@ public final class Rules {
       public static final Action NOT_FOUND = new SendError(HttpServletResponse.SC_NOT_FOUND);
 
       /**
-       * @see  HttpServletResponse#SC_METHOD_NOT_ALLOWED
+       * See {@link HttpServletResponse#SC_METHOD_NOT_ALLOWED}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2894,7 +2974,7 @@ public final class Rules {
       public static final Action METHOD_NOT_ALLOWED = new SendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
 
       /**
-       * @see  HttpServletResponse#SC_NOT_ACCEPTABLE
+       * See {@link HttpServletResponse#SC_NOT_ACCEPTABLE}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2903,7 +2983,7 @@ public final class Rules {
       public static final Action NOT_ACCEPTABLE = new SendError(HttpServletResponse.SC_NOT_ACCEPTABLE);
 
       /**
-       * @see  HttpServletResponse#SC_PROXY_AUTHENTICATION_REQUIRED
+       * See {@link HttpServletResponse#SC_PROXY_AUTHENTICATION_REQUIRED}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2912,7 +2992,7 @@ public final class Rules {
       public static final Action PROXY_AUTHENTICATION_REQUIRED = new SendError(HttpServletResponse.SC_PROXY_AUTHENTICATION_REQUIRED);
 
       /**
-       * @see  HttpServletResponse#SC_REQUEST_TIMEOUT
+       * See {@link HttpServletResponse#SC_REQUEST_TIMEOUT}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2921,7 +3001,7 @@ public final class Rules {
       public static final Action REQUEST_TIMEOUT = new SendError(HttpServletResponse.SC_REQUEST_TIMEOUT);
 
       /**
-       * @see  HttpServletResponse#SC_CONFLICT
+       * See {@link HttpServletResponse#SC_CONFLICT}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2930,7 +3010,7 @@ public final class Rules {
       public static final Action CONFLICT = new SendError(HttpServletResponse.SC_CONFLICT);
 
       /**
-       * @see  HttpServletResponse#SC_GONE
+       * See {@link HttpServletResponse#SC_GONE}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2939,7 +3019,7 @@ public final class Rules {
       public static final Action GONE = new SendError(HttpServletResponse.SC_GONE);
 
       /**
-       * <a href="https://wikipedia.org/wiki/HTTP_451">HTTP 451</a>
+       * <a href="https://wikipedia.org/wiki/HTTP_451">HTTP 451</a>.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2948,7 +3028,7 @@ public final class Rules {
       public static final Action UNAVAILABLE_FOR_LEGAL_REASONS = new SendError(451);
 
       /**
-       * @see  HttpServletResponse#SC_LENGTH_REQUIRED
+       * See {@link HttpServletResponse#SC_LENGTH_REQUIRED}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2957,7 +3037,7 @@ public final class Rules {
       public static final Action LENGTH_REQUIRED = new SendError(HttpServletResponse.SC_LENGTH_REQUIRED);
 
       /**
-       * @see  HttpServletResponse#SC_PRECONDITION_FAILED
+       * See {@link HttpServletResponse#SC_PRECONDITION_FAILED}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2966,7 +3046,7 @@ public final class Rules {
       public static final Action PRECONDITION_FAILED = new SendError(HttpServletResponse.SC_PRECONDITION_FAILED);
 
       /**
-       * @see  HttpServletResponse#SC_REQUEST_ENTITY_TOO_LARGE
+       * See {@link HttpServletResponse#SC_REQUEST_ENTITY_TOO_LARGE}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2975,7 +3055,7 @@ public final class Rules {
       public static final Action REQUEST_ENTITY_TOO_LARGE = new SendError(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
 
       /**
-       * @see  HttpServletResponse#SC_REQUEST_URI_TOO_LONG
+       * See {@link HttpServletResponse#SC_REQUEST_URI_TOO_LONG}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2984,7 +3064,7 @@ public final class Rules {
       public static final Action REQUEST_URI_TOO_LONG = new SendError(HttpServletResponse.SC_REQUEST_URI_TOO_LONG);
 
       /**
-       * @see  HttpServletResponse#SC_UNSUPPORTED_MEDIA_TYPE
+       * See {@link HttpServletResponse#SC_UNSUPPORTED_MEDIA_TYPE}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -2993,7 +3073,7 @@ public final class Rules {
       public static final Action UNSUPPORTED_MEDIA_TYPE = new SendError(HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE);
 
       /**
-       * @see  HttpServletResponse#SC_REQUESTED_RANGE_NOT_SATISFIABLE
+       * See {@link HttpServletResponse#SC_REQUESTED_RANGE_NOT_SATISFIABLE}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -3002,7 +3082,7 @@ public final class Rules {
       public static final Action REQUESTED_RANGE_NOT_SATISFIABLE = new SendError(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
 
       /**
-       * @see  HttpServletResponse#SC_EXPECTATION_FAILED
+       * See {@link HttpServletResponse#SC_EXPECTATION_FAILED}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -3011,7 +3091,7 @@ public final class Rules {
       public static final Action EXPECTATION_FAILED = new SendError(HttpServletResponse.SC_EXPECTATION_FAILED);
 
       /**
-       * @see  HttpServletResponse#SC_INTERNAL_SERVER_ERROR
+       * See {@link HttpServletResponse#SC_INTERNAL_SERVER_ERROR}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -3020,7 +3100,7 @@ public final class Rules {
       public static final Action INTERNAL_SERVER_ERROR = new SendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 
       /**
-       * @see  HttpServletResponse#SC_NOT_IMPLEMENTED
+       * See {@link HttpServletResponse#SC_NOT_IMPLEMENTED}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -3029,7 +3109,7 @@ public final class Rules {
       public static final Action NOT_IMPLEMENTED = new SendError(HttpServletResponse.SC_NOT_IMPLEMENTED);
 
       /**
-       * @see  HttpServletResponse#SC_BAD_GATEWAY
+       * See {@link HttpServletResponse#SC_BAD_GATEWAY}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -3038,7 +3118,7 @@ public final class Rules {
       public static final Action BAD_GATEWAY = new SendError(HttpServletResponse.SC_BAD_GATEWAY);
 
       /**
-       * @see  HttpServletResponse#SC_SERVICE_UNAVAILABLE
+       * See {@link HttpServletResponse#SC_SERVICE_UNAVAILABLE}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -3047,7 +3127,7 @@ public final class Rules {
       public static final Action SERVICE_UNAVAILABLE = new SendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
 
       /**
-       * @see  HttpServletResponse#SC_GATEWAY_TIMEOUT
+       * See {@link HttpServletResponse#SC_GATEWAY_TIMEOUT}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
@@ -3056,7 +3136,7 @@ public final class Rules {
       public static final Action GATEWAY_TIMEOUT = new SendError(HttpServletResponse.SC_GATEWAY_TIMEOUT);
 
       /**
-       * @see  HttpServletResponse#SC_HTTP_VERSION_NOT_SUPPORTED
+       * See {@link HttpServletResponse#SC_HTTP_VERSION_NOT_SUPPORTED}.
        * <p>
        * <b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always
