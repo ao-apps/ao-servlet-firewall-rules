@@ -1,6 +1,6 @@
 /*
  * ao-servlet-firewall-rules - Rules for servlet-based application request filtering.
- * Copyright (C) 2018, 2019, 2020, 2021, 2022, 2024  AO Industries, Inc.
+ * Copyright (C) 2018, 2019, 2020, 2021, 2022, 2024, 2025  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -1323,7 +1323,7 @@ public final class Rules {
       /**
        * Matches any of a given iterable of {@link HttpServletRequest#getAuthType()}.
        */
-      public static Matcher in(Iterable<? extends String> authTypes) {
+      public static Matcher in(Iterable<String> authTypes) {
         return (context, request) -> {
           String type = request.getAuthType();
           if (type != null) {
@@ -1340,7 +1340,7 @@ public final class Rules {
       /**
        * Matches any of a given set of {@link HttpServletRequest#getAuthType()}.
        */
-      public static Matcher in(Collection<? extends String> authTypes) {
+      public static Matcher in(Collection<String> authTypes) {
         return (context, request) -> {
           String type = request.getAuthType();
           return type != null && authTypes.contains(type)
@@ -1367,7 +1367,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher in(Iterable<? extends String> authTypes, Iterable<? extends Rule> rules) {
+      public static Matcher in(Iterable<String> authTypes, Iterable<? extends Rule> rules) {
         return (context, request) -> {
           boolean matches = false;
           String type = request.getAuthType();
@@ -1389,7 +1389,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher in(Iterable<? extends String> authTypes, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+      public static Matcher in(Iterable<String> authTypes, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
         return (context, request) -> {
           boolean matches = false;
           String type = request.getAuthType();
@@ -1410,7 +1410,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher in(Collection<? extends String> authTypes, Iterable<? extends Rule> rules) {
+      public static Matcher in(Collection<String> authTypes, Iterable<? extends Rule> rules) {
         return (context, request) -> {
           String type = request.getAuthType();
           return doMatches(type != null && authTypes.contains(type), context, rules);
@@ -1423,7 +1423,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher in(Collection<? extends String> authTypes, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+      public static Matcher in(Collection<String> authTypes, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
         return (context, request) -> {
           String type = request.getAuthType();
           return doMatches(type != null && authTypes.contains(type), context, rules, otherwise);
@@ -1466,7 +1466,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher in(Iterable<? extends String> authTypes, Rule ... rules) {
+      public static Matcher in(Iterable<String> authTypes, Rule ... rules) {
         if (rules.length == 0) {
           return in(authTypes);
         }
@@ -1479,7 +1479,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher in(Iterable<? extends String> authTypes, Rule[] rules, Rule ... otherwise) {
+      public static Matcher in(Iterable<String> authTypes, Rule[] rules, Rule ... otherwise) {
         if (otherwise.length == 0) {
           return in(authTypes, rules);
         }
@@ -1491,7 +1491,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher in(Collection<? extends String> authTypes, Rule ... rules) {
+      public static Matcher in(Collection<String> authTypes, Rule ... rules) {
         if (rules.length == 0) {
           return in(authTypes);
         }
@@ -1504,7 +1504,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher in(Collection<? extends String> authTypes, Rule[] rules, Rule ... otherwise) {
+      public static Matcher in(Collection<String> authTypes, Rule[] rules, Rule ... otherwise) {
         if (otherwise.length == 0) {
           return in(authTypes, rules);
         }
@@ -1869,7 +1869,7 @@ public final class Rules {
       /**
        * Matches any of a given iterable of {@link HttpServletRequest#getMethod()}.
        */
-      public static Matcher in(Iterable<? extends String> methods) {
+      public static Matcher in(Iterable<String> methods) {
         return (context, request) -> {
           String m = request.getMethod();
           for (String method : methods) {
@@ -1884,7 +1884,7 @@ public final class Rules {
       /**
        * Matches any of a given set of {@link HttpServletRequest#getMethod()}.
        */
-      public static Matcher in(Collection<? extends String> methods) {
+      public static Matcher in(Collection<String> methods) {
         return (context, request) -> methods.contains(request.getMethod())
             ? Matcher.Result.MATCH
             : Matcher.Result.NO_MATCH;
@@ -1909,7 +1909,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher in(Iterable<? extends String> methods, Iterable<? extends Rule> rules) {
+      public static Matcher in(Iterable<String> methods, Iterable<? extends Rule> rules) {
         return (context, request) -> {
           boolean matches = false;
           String m = request.getMethod();
@@ -1929,7 +1929,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher in(Iterable<? extends String> methods, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+      public static Matcher in(Iterable<String> methods, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
         return (context, request) -> {
           boolean matches = false;
           String m = request.getMethod();
@@ -1948,7 +1948,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher in(Collection<? extends String> methods, Iterable<? extends Rule> rules) {
+      public static Matcher in(Collection<String> methods, Iterable<? extends Rule> rules) {
         return (context, request) -> doMatches(methods.contains(request.getMethod()), context, rules);
       }
 
@@ -1958,7 +1958,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher in(Collection<? extends String> methods, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
+      public static Matcher in(Collection<String> methods, Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
         return (context, request) -> doMatches(methods.contains(request.getMethod()), context, rules, otherwise);
       }
 
@@ -2000,7 +2000,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher in(Iterable<? extends String> methods, Rule ... rules) {
+      public static Matcher in(Iterable<String> methods, Rule ... rules) {
         if (rules.length == 0) {
           return in(methods);
         }
@@ -2013,7 +2013,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher in(Iterable<? extends String> methods, Rule[] rules, Rule ... otherwise) {
+      public static Matcher in(Iterable<String> methods, Rule[] rules, Rule ... otherwise) {
         if (otherwise.length == 0) {
           return in(methods, rules);
         }
@@ -2025,7 +2025,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher in(Collection<? extends String> methods, Rule ... rules) {
+      public static Matcher in(Collection<String> methods, Rule ... rules) {
         if (rules.length == 0) {
           return in(methods);
         }
@@ -2038,7 +2038,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher in(Collection<? extends String> methods, Rule[] rules, Rule ... otherwise) {
+      public static Matcher in(Collection<String> methods, Rule[] rules, Rule ... otherwise) {
         if (otherwise.length == 0) {
           return in(methods, rules);
         }
@@ -2429,7 +2429,7 @@ public final class Rules {
        *          {@link com.aoapps.servlet.firewall.api.Action.Result#CONTINUE} if the request method is one of the given methods.
        */
       // TODO: Iterable version, too?
-      public static Action constrain(Collection<? extends String> methods) {
+      public static Action constrain(Collection<String> methods) {
         return (context, request, response, chain) -> {
           // Do nothing on includes
           if (request.getDispatcherType() != DispatcherType.INCLUDE) {
