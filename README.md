@@ -23,7 +23,7 @@ Rules for servlet-based application request filtering.
 * [Project Home](https://oss.aoapps.com/servlet-firewall/rules/)
 * [Changelog](https://oss.aoapps.com/servlet-firewall/rules/changelog)
 * [API Docs](https://oss.aoapps.com/servlet-firewall/rules/apidocs/)
-* [Maven Central Repository](https://central.sonatype.com/artifact/com.aoapps/ao-servlet-firewall-rules)
+* [Central Repository](https://central.sonatype.com/artifact/com.aoapps/ao-servlet-firewall-rules)
 * [GitHub](https://github.com/ao-apps/ao-servlet-firewall-rules)
 
 ## Features
