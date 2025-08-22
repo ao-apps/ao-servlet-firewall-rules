@@ -134,7 +134,7 @@ public final class Rules {
    *
    * @see  #none
    */
-  public static Matcher none(Rule ... rules) {
+  public static Matcher none(Rule... rules) {
     return none;
   }
 
@@ -149,7 +149,7 @@ public final class Rules {
    *
    * @see  #none
    */
-  public static Matcher none(Rule[] rules, Rule ... otherwise) {
+  public static Matcher none(Rule[] rules, Rule... otherwise) {
     return none;
   }
 
@@ -198,7 +198,7 @@ public final class Rules {
    * @return  Returns {@link com.aoapps.servlet.firewall.api.Matcher.Result#TERMINATE} if a terminating action
    *          has occurred.  Otherwise returns {@link com.aoapps.servlet.firewall.api.Matcher.Result#MATCH}.
    */
-  public static Matcher all(Rule ... rules) {
+  public static Matcher all(Rule... rules) {
     if (rules.length == 0) {
       return all;
     }
@@ -217,7 +217,7 @@ public final class Rules {
    *
    * @see  #all(com.aoapps.servlet.firewall.api.Rule...)
    */
-  public static Matcher all(Rule[] rules, Rule ... otherwise) {
+  public static Matcher all(Rule[] rules, Rule... otherwise) {
     return all(rules);
   }
 
@@ -321,7 +321,7 @@ public final class Rules {
   // TODO: Is "all" the best name for this?  Maybe "and" / "or" instead of "all" / "any"?
   //       This is because it might be expected that all rules will be invoked, not as a matcher.
   //       Then "all" could be created that simply calls all rules, useful inside "and" / "or" to not terminate?
-  public static Matcher and(Rule ... rules) {
+  public static Matcher and(Rule... rules) {
     if (rules.length == 0) {
       return all;
     }
@@ -337,7 +337,7 @@ public final class Rules {
    *
    * @return  {@link com.aoapps.servlet.firewall.api.Matcher.Result#MATCH} when rules is empty
    */
-  public static Matcher and(Rule[] rules, Rule ... otherwise) {
+  public static Matcher and(Rule[] rules, Rule... otherwise) {
     if (otherwise.length == 0) {
       return and(rules);
     }
@@ -457,7 +457,7 @@ public final class Rules {
    *
    * @see  #none
    */
-  public static Matcher or(Rule ... rules) {
+  public static Matcher or(Rule... rules) {
     if (rules.length == 0) {
       return none;
     }
@@ -475,7 +475,7 @@ public final class Rules {
    *
    * @see  #none
    */
-  public static Matcher or(Rule[] rules, Rule ... otherwise) {
+  public static Matcher or(Rule[] rules, Rule... otherwise) {
     if (otherwise.length == 0) {
       return or(rules);
     }
@@ -758,7 +758,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher is(DispatcherType dispatcherType, Rule ... rules) {
+      public static Matcher is(DispatcherType dispatcherType, Rule... rules) {
         if (rules.length == 0) {
           return is(dispatcherType);
         }
@@ -771,7 +771,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher is(DispatcherType dispatcherType, Rule[] rules, Rule ... otherwise) {
+      public static Matcher is(DispatcherType dispatcherType, Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return is(dispatcherType, rules);
         }
@@ -805,7 +805,7 @@ public final class Rules {
       /**
        * Matches any of a given set of {@link DispatcherType}.
        */
-      public static Matcher in(DispatcherType ... dispatcherTypes) {
+      public static Matcher in(DispatcherType... dispatcherTypes) {
         if (dispatcherTypes.length == 0) {
           return none;
         }
@@ -909,7 +909,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher in(Iterable<? extends DispatcherType> dispatcherTypes, Rule ... rules) {
+      public static Matcher in(Iterable<? extends DispatcherType> dispatcherTypes, Rule... rules) {
         if (rules.length == 0) {
           return in(dispatcherTypes);
         }
@@ -922,7 +922,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher in(Iterable<? extends DispatcherType> dispatcherTypes, Rule[] rules, Rule ... otherwise) {
+      public static Matcher in(Iterable<? extends DispatcherType> dispatcherTypes, Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return in(dispatcherTypes, rules);
         }
@@ -934,7 +934,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher in(Set<? extends DispatcherType> dispatcherTypes, Rule ... rules) {
+      public static Matcher in(Set<? extends DispatcherType> dispatcherTypes, Rule... rules) {
         if (rules.length == 0) {
           return in(dispatcherTypes);
         }
@@ -947,7 +947,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher in(Set<? extends DispatcherType> dispatcherTypes, Rule[] rules, Rule ... otherwise) {
+      public static Matcher in(Set<? extends DispatcherType> dispatcherTypes, Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return in(dispatcherTypes, rules);
         }
@@ -959,7 +959,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher in(DispatcherType[] dispatcherTypes, Rule ... rules) {
+      public static Matcher in(DispatcherType[] dispatcherTypes, Rule... rules) {
         if (dispatcherTypes.length == 0) {
           return none;
         }
@@ -978,7 +978,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher in(DispatcherType[] dispatcherTypes, Rule[] rules, Rule ... otherwise) {
+      public static Matcher in(DispatcherType[] dispatcherTypes, Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return in(dispatcherTypes, rules);
         }
@@ -1014,7 +1014,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher isForward(Rule ... rules) {
+      public static Matcher isForward(Rule... rules) {
         return is(DispatcherType.FORWARD, rules);
       }
 
@@ -1024,7 +1024,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher isForward(Rule[] rules, Rule ... otherwise) {
+      public static Matcher isForward(Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return isForward(rules);
         }
@@ -1060,7 +1060,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher isInclude(Rule ... rules) {
+      public static Matcher isInclude(Rule... rules) {
         return is(DispatcherType.INCLUDE, rules);
       }
 
@@ -1070,7 +1070,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher isInclude(Rule[] rules, Rule ... otherwise) {
+      public static Matcher isInclude(Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return isInclude(rules);
         }
@@ -1106,7 +1106,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher isRequest(Rule ... rules) {
+      public static Matcher isRequest(Rule... rules) {
         return is(DispatcherType.REQUEST, rules);
       }
 
@@ -1116,7 +1116,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher isRequest(Rule[] rules, Rule ... otherwise) {
+      public static Matcher isRequest(Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return isRequest(rules);
         }
@@ -1152,7 +1152,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher isAsync(Rule ... rules) {
+      public static Matcher isAsync(Rule... rules) {
         return is(DispatcherType.ASYNC, rules);
       }
 
@@ -1162,7 +1162,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher isAsync(Rule[] rules, Rule ... otherwise) {
+      public static Matcher isAsync(Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return isAsync(rules);
         }
@@ -1198,7 +1198,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher isError(Rule ... rules) {
+      public static Matcher isError(Rule... rules) {
         return is(DispatcherType.ERROR, rules);
       }
 
@@ -1208,7 +1208,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher isError(Rule[] rules, Rule ... otherwise) {
+      public static Matcher isError(Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return isError(rules);
         }
@@ -1300,7 +1300,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher is(String authType, Rule ... rules) {
+      public static Matcher is(String authType, Rule... rules) {
         if (rules.length == 0) {
           return is(authType);
         }
@@ -1313,7 +1313,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher is(String authType, Rule[] rules, Rule ... otherwise) {
+      public static Matcher is(String authType, Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return is(authType, rules);
         }
@@ -1352,7 +1352,7 @@ public final class Rules {
       /**
        * Matches any of a given set of {@link HttpServletRequest#getAuthType()}.
        */
-      public static Matcher in(String ... authTypes) {
+      public static Matcher in(String... authTypes) {
         if (authTypes.length == 0) {
           return none;
         }
@@ -1466,7 +1466,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher in(Iterable<String> authTypes, Rule ... rules) {
+      public static Matcher in(Iterable<String> authTypes, Rule... rules) {
         if (rules.length == 0) {
           return in(authTypes);
         }
@@ -1479,7 +1479,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher in(Iterable<String> authTypes, Rule[] rules, Rule ... otherwise) {
+      public static Matcher in(Iterable<String> authTypes, Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return in(authTypes, rules);
         }
@@ -1491,7 +1491,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher in(Collection<String> authTypes, Rule ... rules) {
+      public static Matcher in(Collection<String> authTypes, Rule... rules) {
         if (rules.length == 0) {
           return in(authTypes);
         }
@@ -1504,7 +1504,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher in(Collection<String> authTypes, Rule[] rules, Rule ... otherwise) {
+      public static Matcher in(Collection<String> authTypes, Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return in(authTypes, rules);
         }
@@ -1516,7 +1516,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher in(String[] authTypes, Rule ... rules) {
+      public static Matcher in(String[] authTypes, Rule... rules) {
         if (authTypes.length == 0) {
           return none;
         }
@@ -1535,7 +1535,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher in(String[] authTypes, Rule[] rules, Rule ... otherwise) {
+      public static Matcher in(String[] authTypes, Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return in(authTypes, rules);
         }
@@ -1571,7 +1571,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher isBasic(Rule ... rules) {
+      public static Matcher isBasic(Rule... rules) {
         return is(HttpServletRequest.BASIC_AUTH, rules);
       }
 
@@ -1581,7 +1581,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher isBasic(Rule[] rules, Rule ... otherwise) {
+      public static Matcher isBasic(Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return isBasic(rules);
         }
@@ -1617,7 +1617,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher isForm(Rule ... rules) {
+      public static Matcher isForm(Rule... rules) {
         return is(HttpServletRequest.FORM_AUTH, rules);
       }
 
@@ -1627,7 +1627,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher isForm(Rule[] rules, Rule ... otherwise) {
+      public static Matcher isForm(Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return isForm(rules);
         }
@@ -1663,7 +1663,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher isClientCert(Rule ... rules) {
+      public static Matcher isClientCert(Rule... rules) {
         return is(HttpServletRequest.CLIENT_CERT_AUTH, rules);
       }
 
@@ -1673,7 +1673,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher isClientCert(Rule[] rules, Rule ... otherwise) {
+      public static Matcher isClientCert(Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return isClientCert(rules);
         }
@@ -1709,7 +1709,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher isDigest(Rule ... rules) {
+      public static Matcher isDigest(Rule... rules) {
         return is(HttpServletRequest.DIGEST_AUTH, rules);
       }
 
@@ -1719,7 +1719,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher isDigest(Rule[] rules, Rule ... otherwise) {
+      public static Matcher isDigest(Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return isDigest(rules);
         }
@@ -1846,7 +1846,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher is(String method, Rule ... rules) {
+      public static Matcher is(String method, Rule... rules) {
         if (rules.length == 0) {
           return is(method);
         }
@@ -1859,7 +1859,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher is(String method, Rule[] rules, Rule ... otherwise) {
+      public static Matcher is(String method, Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return is(method, rules);
         }
@@ -1894,7 +1894,7 @@ public final class Rules {
        * Matches any of a given set of {@link HttpServletRequest#getMethod()}.
        */
       // TODO: Allow single-string for methods and parse it splitting on comma/space?
-      public static Matcher in(String ... methods) {
+      public static Matcher in(String... methods) {
         if (methods.length == 0) {
           return none;
         }
@@ -2000,7 +2000,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher in(Iterable<String> methods, Rule ... rules) {
+      public static Matcher in(Iterable<String> methods, Rule... rules) {
         if (rules.length == 0) {
           return in(methods);
         }
@@ -2013,7 +2013,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher in(Iterable<String> methods, Rule[] rules, Rule ... otherwise) {
+      public static Matcher in(Iterable<String> methods, Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return in(methods, rules);
         }
@@ -2025,7 +2025,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher in(Collection<String> methods, Rule ... rules) {
+      public static Matcher in(Collection<String> methods, Rule... rules) {
         if (rules.length == 0) {
           return in(methods);
         }
@@ -2038,7 +2038,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher in(Collection<String> methods, Rule[] rules, Rule ... otherwise) {
+      public static Matcher in(Collection<String> methods, Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return in(methods, rules);
         }
@@ -2051,7 +2051,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        */
       // TODO: Allow single-string for methods and parse it splitting on comma/space?
-      public static Matcher in(String[] methods, Rule ... rules) {
+      public static Matcher in(String[] methods, Rule... rules) {
         if (methods.length == 0) {
           return none;
         }
@@ -2071,7 +2071,7 @@ public final class Rules {
        * @param  otherwise  Invoked only when not matched.
        */
       // TODO: Allow single-string for methods and parse it splitting on comma/space?
-      public static Matcher in(String[] methods, Rule[] rules, Rule ... otherwise) {
+      public static Matcher in(String[] methods, Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return in(methods, rules);
         }
@@ -2107,7 +2107,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher isDELETE(Rule ... rules) {
+      public static Matcher isDELETE(Rule... rules) {
         return is(DELETE, rules);
       }
 
@@ -2117,7 +2117,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher isDELETE(Rule[] rules, Rule ... otherwise) {
+      public static Matcher isDELETE(Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return isDELETE(rules);
         }
@@ -2153,7 +2153,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher isHEAD(Rule ... rules) {
+      public static Matcher isHEAD(Rule... rules) {
         return is(HEAD, rules);
       }
 
@@ -2163,7 +2163,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher isHEAD(Rule[] rules, Rule ... otherwise) {
+      public static Matcher isHEAD(Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return isHEAD(rules);
         }
@@ -2199,7 +2199,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher isGET(Rule ... rules) {
+      public static Matcher isGET(Rule... rules) {
         return is(GET, rules);
       }
 
@@ -2209,7 +2209,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher isGET(Rule[] rules, Rule ... otherwise) {
+      public static Matcher isGET(Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return isGET(rules);
         }
@@ -2245,7 +2245,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher isOPTIONS(Rule ... rules) {
+      public static Matcher isOPTIONS(Rule... rules) {
         return is(OPTIONS, rules);
       }
 
@@ -2255,7 +2255,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher isOPTIONS(Rule[] rules, Rule ... otherwise) {
+      public static Matcher isOPTIONS(Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return isOPTIONS(rules);
         }
@@ -2291,7 +2291,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher isPOST(Rule ... rules) {
+      public static Matcher isPOST(Rule... rules) {
         return is(POST, rules);
       }
 
@@ -2301,7 +2301,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher isPOST(Rule[] rules, Rule ... otherwise) {
+      public static Matcher isPOST(Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return isPOST(rules);
         }
@@ -2337,7 +2337,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher isPUT(Rule ... rules) {
+      public static Matcher isPUT(Rule... rules) {
         return is(PUT, rules);
       }
 
@@ -2347,7 +2347,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher isPUT(Rule[] rules, Rule ... otherwise) {
+      public static Matcher isPUT(Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return isPUT(rules);
         }
@@ -2383,7 +2383,7 @@ public final class Rules {
        *
        * @param  rules  Invoked only when matched.
        */
-      public static Matcher isTRACE(Rule ... rules) {
+      public static Matcher isTRACE(Rule... rules) {
         return is(TRACE, rules);
       }
 
@@ -2393,7 +2393,7 @@ public final class Rules {
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
        */
-      public static Matcher isTRACE(Rule[] rules, Rule ... otherwise) {
+      public static Matcher isTRACE(Rule[] rules, Rule... otherwise) {
         if (otherwise.length == 0) {
           return isTRACE(rules);
         }
@@ -2494,7 +2494,7 @@ public final class Rules {
       /**
        * See {@link #constrain(java.util.Collection)}.
        */
-      public static Action constrain(String ... methods) {
+      public static Action constrain(String... methods) {
         return constrain(AoCollections.unmodifiableCopySet(Arrays.asList(methods)));
       }
     }
