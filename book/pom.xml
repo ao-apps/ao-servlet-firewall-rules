@@ -43,6 +43,8 @@ along with ao-servlet-firewall-rules.  If not, see <https://www.gnu.org/licenses
     <documented.description>Rules for servlet-based application request filtering.</documented.description>
 
     <description.html><![CDATA[Documentation for <a target="${javadoc.target}" href="${project.url}">${documented.name}</a> in <a target="${javadoc.target}" href="https://semanticcms.com/">SemanticCMS</a> format.]]></description.html>
+    <!-- SonarQube -->
+    <sonar.projectKey>${project.groupId}:${project.artifactId}:javaee</sonar.projectKey>
   </properties>
 
   <name>AO Servlet Firewall Rules Book</name>
