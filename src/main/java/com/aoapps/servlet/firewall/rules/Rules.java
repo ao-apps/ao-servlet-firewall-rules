@@ -1,6 +1,6 @@
 /*
  * ao-servlet-firewall-rules - Rules for servlet-based application request filtering.
- * Copyright (C) 2018, 2019, 2020, 2021, 2022, 2024, 2025  AO Industries, Inc.
+ * Copyright (C) 2018, 2019, 2020, 2021, 2022, 2024, 2025, 2026  AO Industries, Inc.
  *     support@aoindustries.com
  *     7262 Bull Pen Cir
  *     Mobile, AL 36695
@@ -32,20 +32,20 @@ import com.aoapps.servlet.firewall.api.FirewallContext;
 import com.aoapps.servlet.firewall.api.Matcher;
 import com.aoapps.servlet.firewall.api.Rule;
 import com.aoapps.servlet.http.HttpServletUtil;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
-import javax.servlet.DispatcherType;
-import javax.servlet.FilterChain;
-import javax.servlet.RequestDispatcher;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 /**
  * A set of base {@link Matcher} and {@link Action} implementations based on
@@ -544,7 +544,7 @@ public final class Rules {
     }
 
     /**
-     * See {@link FilterChain#doFilter(javax.servlet.ServletRequest, javax.servlet.ServletResponse)}.
+     * See {@link FilterChain#doFilter(jakarta.servlet.ServletRequest, jakarta.servlet.ServletResponse)}.
      *
      * <p><b>Returns:</b><br>
      * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always</p>
@@ -2415,7 +2415,7 @@ public final class Rules {
        *
        * <p>No action is taken when the dispatcher is {@link DispatcherType#INCLUDE}, due to the
        * servlet specification making the setting of status codes and headers impossible within
-       * includes.  See {@link RequestDispatcher#include(javax.servlet.ServletRequest, javax.servlet.ServletResponse)}
+       * includes.  See {@link RequestDispatcher#include(jakarta.servlet.ServletRequest, jakarta.servlet.ServletResponse)}
        * for more details.</p>
        *
        * <p>TODO: Wrap request/response to convert HEAD to GET here when HEAD implied?
@@ -3092,7 +3092,7 @@ public final class Rules {
 
   // TODO: Session outwise request/response?
 
-  // TODO: javax.servlet.descriptor package?
+  // TODO: jakarta.servlet.descriptor package?
 
   // TODO: AO-include/forward args?
 }
