@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 ao-servlet-firewall-rules - Rules for servlet-based application request filtering.
-Copyright (C) 2018, 2019, 2020, 2021, 2022, 2023, 2025  AO Industries, Inc.
+Copyright (C) 2018, 2019, 2020, 2021, 2022, 2023, 2025, 2026  AO Industries, Inc.
     support@aoindustries.com
     7262 Bull Pen Cir
     Mobile, AL 36695
@@ -34,7 +34,7 @@ along with ao-servlet-firewall-rules.  If not, see <https://www.gnu.org/licenses
     title="@{documented.name}"
     description="@{documented.description}"
     datePublished="2018-06-09T14:43:13-05:00"
-    dateModified="2025-12-28T20:36:14Z"
+    dateModified="2026-01-18T16:26:33Z"
   >
     <core:child page="changelog.jspx" />
     <core:child page="apidocs/index.jspx" />
@@ -45,7 +45,7 @@ along with ao-servlet-firewall-rules.  If not, see <https://www.gnu.org/licenses
         arg.managementStatus="preview"
         arg.packagingStatus="developmental"
         arg.javaseVersion="@{documented.javase.version}"
-        arg.javaeeVersion="@{documented.javaee.version}"
+        arg.jakartaeeVersion="@{documented.javaee.version}"
         arg.semanticVersioning="2.0.0"
         arg.license="lgpl-3.0"
         arg.scmUrl="@{project.scm.url}"
