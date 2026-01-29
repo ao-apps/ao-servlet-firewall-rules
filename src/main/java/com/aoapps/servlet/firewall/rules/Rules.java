@@ -89,8 +89,8 @@ public final class Rules {
    * <p><b>Returns:</b><br>
    * Returns {@link com.aoapps.servlet.firewall.api.Matcher.Result#NO_MATCH} always</p>
    *
-   * @see  #or(java.lang.Iterable)
-   * @see  #or(com.aoapps.servlet.firewall.api.Rule[])
+   * @see  Rules#or(java.lang.Iterable)
+   * @see  Rules#or(com.aoapps.servlet.firewall.api.Rule[])
    */
   // TODO: Rename NO_MATCH?
   public static final Matcher none = (context, request) -> Matcher.Result.NO_MATCH;
@@ -101,9 +101,9 @@ public final class Rules {
    *
    * @param  rules  The rules are never called.
    *
-   * @return  Returns {@link #none} always
+   * @return  Returns {@link Rules#none} always
    *
-   * @see  #none
+   * @see  Rules#none
    */
   public static Matcher none(Iterable<? extends Rule> rules) {
     return none;
@@ -116,9 +116,9 @@ public final class Rules {
    * @param  rules  The rules are never called.
    * @param  otherwise  The rules are never called.
    *
-   * @return  Returns {@link #none} always
+   * @return  Returns {@link Rules#none} always
    *
-   * @see  #none
+   * @see  Rules#none
    */
   public static Matcher none(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
     return none;
@@ -130,9 +130,9 @@ public final class Rules {
    *
    * @param  rules  The rules are never called.
    *
-   * @return  Returns {@link #none} always
+   * @return  Returns {@link Rules#none} always
    *
-   * @see  #none
+   * @see  Rules#none
    */
   public static Matcher none(Rule... rules) {
     return none;
@@ -145,9 +145,9 @@ public final class Rules {
    * @param  rules  The rules are never called.
    * @param  otherwise  The rules are never called.
    *
-   * @return  Returns {@link #none} always
+   * @return  Returns {@link Rules#none} always
    *
-   * @see  #none
+   * @see  Rules#none
    */
   public static Matcher none(Rule[] rules, Rule... otherwise) {
     return none;
@@ -182,9 +182,9 @@ public final class Rules {
    * @param  rules  All rules are called, up to any terminating action.
    * @param  otherwise  The rules are never called.
    *
-   * @return  Returns {@link #all(java.lang.Iterable)} always
+   * @return  Returns {@link Rules#all(java.lang.Iterable)} always
    *
-   * @see  #all(java.lang.Iterable)
+   * @see  Rules#all(java.lang.Iterable)
    */
   public static Matcher all(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
     return all(rules);
@@ -213,9 +213,9 @@ public final class Rules {
    * @param  rules  All rules are called, up to any terminating action.
    * @param  otherwise  The rules are never called.
    *
-   * @return  Returns {@link #all(com.aoapps.servlet.firewall.api.Rule...)} always
+   * @return  Returns {@link Rules#all(com.aoapps.servlet.firewall.api.Rule...)} always
    *
-   * @see  #all(com.aoapps.servlet.firewall.api.Rule...)
+   * @see  Rules#all(com.aoapps.servlet.firewall.api.Rule...)
    */
   public static Matcher all(Rule[] rules, Rule... otherwise) {
     return all(rules);
@@ -351,7 +351,7 @@ public final class Rules {
    *
    * @return  {@link com.aoapps.servlet.firewall.api.Matcher.Result#NO_MATCH} when rules is empty
    *
-   * @see  #none
+   * @see  Rules#none
    */
   public static Matcher or(Iterable<? extends Rule> rules) {
     return (context, request) -> {
@@ -402,7 +402,7 @@ public final class Rules {
    *
    * @return  {@link com.aoapps.servlet.firewall.api.Matcher.Result#NO_MATCH} when rules is empty
    *
-   * @see  #none
+   * @see  Rules#none
    */
   public static Matcher or(Iterable<? extends Rule> rules, Iterable<? extends Rule> otherwise) {
     return (context, request) -> {
@@ -455,7 +455,7 @@ public final class Rules {
    *
    * @return  {@link com.aoapps.servlet.firewall.api.Matcher.Result#NO_MATCH} when rules is empty
    *
-   * @see  #none
+   * @see  Rules#none
    */
   public static Matcher or(Rule... rules) {
     if (rules.length == 0) {
@@ -473,7 +473,7 @@ public final class Rules {
    *
    * @return  {@link com.aoapps.servlet.firewall.api.Matcher.Result#NO_MATCH} when rules is empty
    *
-   * @see  #none
+   * @see  Rules#none
    */
   public static Matcher or(Rule[] rules, Rule... otherwise) {
     if (otherwise.length == 0) {
@@ -2079,12 +2079,12 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #DELETE}.
+       * Matches {@link method#DELETE}.
        */
       public static final Matcher isDELETE = new Is(DELETE);
 
       /**
-       * Matches {@link #DELETE}.
+       * Matches {@link method#DELETE}.
        *
        * @param  rules  Invoked only when matched.
        */
@@ -2093,7 +2093,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #DELETE}.
+       * Matches {@link method#DELETE}.
        *
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
@@ -2103,7 +2103,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #DELETE}.
+       * Matches {@link method#DELETE}.
        *
        * @param  rules  Invoked only when matched.
        */
@@ -2112,7 +2112,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #DELETE}.
+       * Matches {@link method#DELETE}.
        *
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
@@ -2125,12 +2125,12 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #HEAD}.
+       * Matches {@link method#HEAD}.
        */
       public static final Matcher isHEAD = new Is(HEAD);
 
       /**
-       * Matches {@link #HEAD}.
+       * Matches {@link method#HEAD}.
        *
        * @param  rules  Invoked only when matched.
        */
@@ -2139,7 +2139,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #HEAD}.
+       * Matches {@link method#HEAD}.
        *
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
@@ -2149,7 +2149,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #HEAD}.
+       * Matches {@link method#HEAD}.
        *
        * @param  rules  Invoked only when matched.
        */
@@ -2158,7 +2158,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #HEAD}.
+       * Matches {@link method#HEAD}.
        *
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
@@ -2171,12 +2171,12 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #GET}.
+       * Matches {@link method#GET}.
        */
       public static final Matcher isGET = new Is(GET);
 
       /**
-       * Matches {@link #GET}.
+       * Matches {@link method#GET}.
        *
        * @param  rules  Invoked only when matched.
        */
@@ -2185,7 +2185,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #GET}.
+       * Matches {@link method#GET}.
        *
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
@@ -2195,7 +2195,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #GET}.
+       * Matches {@link method#GET}.
        *
        * @param  rules  Invoked only when matched.
        */
@@ -2204,7 +2204,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #GET}.
+       * Matches {@link method#GET}.
        *
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
@@ -2217,12 +2217,12 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #OPTIONS}.
+       * Matches {@link method#OPTIONS}.
        */
       public static final Matcher isOPTIONS = new Is(OPTIONS);
 
       /**
-       * Matches {@link #OPTIONS}.
+       * Matches {@link method#OPTIONS}.
        *
        * @param  rules  Invoked only when matched.
        */
@@ -2231,7 +2231,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #OPTIONS}.
+       * Matches {@link method#OPTIONS}.
        *
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
@@ -2241,7 +2241,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #OPTIONS}.
+       * Matches {@link method#OPTIONS}.
        *
        * @param  rules  Invoked only when matched.
        */
@@ -2250,7 +2250,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #OPTIONS}.
+       * Matches {@link method#OPTIONS}.
        *
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
@@ -2263,12 +2263,12 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #POST}.
+       * Matches {@link method#POST}.
        */
       public static final Matcher isPOST = new Is(POST);
 
       /**
-       * Matches {@link #POST}.
+       * Matches {@link method#POST}.
        *
        * @param  rules  Invoked only when matched.
        */
@@ -2277,7 +2277,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #POST}.
+       * Matches {@link method#POST}.
        *
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
@@ -2287,7 +2287,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #POST}.
+       * Matches {@link method#POST}.
        *
        * @param  rules  Invoked only when matched.
        */
@@ -2296,7 +2296,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #POST}.
+       * Matches {@link method#POST}.
        *
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
@@ -2309,12 +2309,12 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #PUT}.
+       * Matches {@link method#PUT}.
        */
       public static final Matcher isPUT = new Is(PUT);
 
       /**
-       * Matches {@link #PUT}.
+       * Matches {@link method#PUT}.
        *
        * @param  rules  Invoked only when matched.
        */
@@ -2323,7 +2323,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #PUT}.
+       * Matches {@link method#PUT}.
        *
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
@@ -2333,7 +2333,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #PUT}.
+       * Matches {@link method#PUT}.
        *
        * @param  rules  Invoked only when matched.
        */
@@ -2342,7 +2342,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #PUT}.
+       * Matches {@link method#PUT}.
        *
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
@@ -2355,12 +2355,12 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #TRACE}.
+       * Matches {@link method#TRACE}.
        */
       public static final Matcher isTRACE = new Is(TRACE);
 
       /**
-       * Matches {@link #TRACE}.
+       * Matches {@link method#TRACE}.
        *
        * @param  rules  Invoked only when matched.
        */
@@ -2369,7 +2369,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #TRACE}.
+       * Matches {@link method#TRACE}.
        *
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
@@ -2379,7 +2379,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #TRACE}.
+       * Matches {@link method#TRACE}.
        *
        * @param  rules  Invoked only when matched.
        */
@@ -2388,7 +2388,7 @@ public final class Rules {
       }
 
       /**
-       * Matches {@link #TRACE}.
+       * Matches {@link method#TRACE}.
        *
        * @param  rules  Invoked only when matched.
        * @param  otherwise  Invoked only when not matched.
@@ -2402,15 +2402,15 @@ public final class Rules {
 
       /**
        * Constrains a request to the given set of methods.
-       * Always includes {@link #OPTIONS}.
-       * {@link #GET} implies {@link #HEAD}.
+       * Always includes {@link method#OPTIONS}.
+       * {@link method#GET} implies {@link method#HEAD}.
        *
-       * <p>When {@link #OPTIONS} is not in the given set of methods, responds to the request if is the
-       * {@link #OPTIONS} method and stops rules processing.  {@link #OPTIONS} requests are passed-on
+       * <p>When {@link method#OPTIONS} is not in the given set of methods, responds to the request if is the
+       * {@link method#OPTIONS} method and stops rules processing.  {@link method#OPTIONS} requests are passed-on
        * when included in the set of methods.
        * See <a href="https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.2">https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.2</a></p>
        *
-       * <p>Responds with <code>405 Method Not Allowed</code> if the request is not one of the given methods, {@link #OPTIONS}, or an implied {@link #HEAD}.
+       * <p>Responds with <code>405 Method Not Allowed</code> if the request is not one of the given methods, {@link method#OPTIONS}, or an implied {@link method#HEAD}.
        * See <a href="https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.5">https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.5</a>.</p>
        *
        * <p>No action is taken when the dispatcher is {@link DispatcherType#INCLUDE}, due to the
@@ -2425,7 +2425,7 @@ public final class Rules {
        * <p>TODO: Should this only be applied on the {@link DispatcherType#REQUEST} dispatcher instead of just skipping {@link DispatcherType#REQUEST}?
        * Should this throw an exception instead of silently taking no action on skipped dispatchers?</p>
        *
-       * @return  {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} if has responded to {@link #OPTIONS} or with 405 status.
+       * @return  {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} if has responded to {@link method#OPTIONS} or with 405 status.
        *          {@link com.aoapps.servlet.firewall.api.Action.Result#CONTINUE} if the request method is one of the given methods.
        */
       // TODO: Iterable version, too?
@@ -2492,7 +2492,7 @@ public final class Rules {
       }
 
       /**
-       * See {@link #constrain(java.util.Collection)}.
+       * See {@link method#constrain(java.util.Collection)}.
        */
       public static Action constrain(String... methods) {
         return constrain(AoCollections.unmodifiableCopySet(Arrays.asList(methods)));
@@ -2841,7 +2841,7 @@ public final class Rules {
        * <p><b>Returns:</b><br>
        * Returns {@link com.aoapps.servlet.firewall.api.Action.Result#TERMINATE} always</p>
        *
-       * @deprecated  Please use {@link #FOUND}
+       * @deprecated  Please use {@link sendError#FOUND}
        */
       @Deprecated(forRemoval = false)
       public static final Action MOVED_TEMPORARILY = FOUND;
